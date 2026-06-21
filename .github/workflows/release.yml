@@ -21,6 +21,13 @@ jobs:
         with:
           dotnet-version: |
             8.0.x
+            10.0.x
+
+      - name: Build Revit 2022
+        run: dotnet build NMKRevit.sln -c D2022 -v minimal
+
+      - name: Build Revit 2023
+        run: dotnet build NMKRevit.sln -c D2023 -v minimal
 
       - name: Build Revit 2024
         run: dotnet build NMKRevit.sln -c D2024 -v minimal
@@ -31,6 +38,9 @@ jobs:
       - name: Build Revit 2026
         run: dotnet build NMKRevit.sln -c D2026 -v minimal
 
+      - name: Build Revit 2027
+        run: dotnet build NMKRevit.sln -c D2027 -v minimal
+
       - name: Create bundle
         shell: pwsh
         run: |
@@ -40,9 +50,12 @@ jobs:
           Copy-Item -Path "deploy/NMKRevit.bundle/PackageContents.xml" -Destination "$bundleRoot/PackageContents.xml" -Force
 
           $versions = @{
+            "2022" = "NMKRevit/bin/Debug/2022/net48"
+            "2023" = "NMKRevit/bin/Debug/2023/net48"
             "2024" = "NMKRevit/bin/Debug/2024/net48"
             "2025" = "NMKRevit/bin/Debug/2025/net80-windows"
             "2026" = "NMKRevit/bin/Debug/2026/net80-windows"
+            "2027" = "NMKRevit/bin/Debug/2027/net10.0-windows"
           }
 
           foreach ($version in $versions.Keys) {

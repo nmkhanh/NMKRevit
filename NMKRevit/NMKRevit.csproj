@@ -9,7 +9,7 @@
 		<Nullable>enable</Nullable>
 		<ImplicitUsings>true</ImplicitUsings>
 		<EnableDynamicLoading>true</EnableDynamicLoading>
-		<Configurations>Debug;Release;D2025;D2024;R2025;R2024;D2022;D2023;D2026;D2021;D2020</Configurations>
+		<Configurations>Debug;Release;D2025;D2024;R2025;R2024;D2022;D2023;D2026;D2027;D2021;D2020</Configurations>
 		<Platforms>AnyCPU</Platforms>
 	</PropertyGroup>
 	<Choose>
@@ -46,6 +46,13 @@
 				<DefineConstants>R26</DefineConstants>
 				<RevitVersion>2026</RevitVersion>
 				<TargetFramework>net80-windows</TargetFramework>
+			</PropertyGroup>
+		</When>
+		<When Condition="$(Configuration.Contains('27'))">
+			<PropertyGroup>
+				<DefineConstants>R27</DefineConstants>
+				<RevitVersion>2027</RevitVersion>
+				<TargetFramework>net10.0-windows</TargetFramework>
 			</PropertyGroup>
 		</When>
 		<When Condition="$(Configuration.Contains('21'))">

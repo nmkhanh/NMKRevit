@@ -270,7 +270,7 @@ namespace NMKRevit.NMKPrint.Services
 
     private static string GetParameterId(Parameter parameter)
     {
-#if D2024 || D2025 || D2026
+#if D2024 || D2025 || D2026 || D2027
       return parameter.Id.Value.ToString();
 #else
       return parameter.Id.IntegerValue.ToString();
@@ -279,7 +279,7 @@ namespace NMKRevit.NMKPrint.Services
 
     private static string GetElementIdValue(ElementId id)
     {
-#if D2024 || D2025 || D2026
+#if D2024 || D2025 || D2026 || D2027
       return id.Value.ToString();
 #else
       return id.IntegerValue.ToString();

@@ -13,6 +13,14 @@
     Name="NMK"
     Url="https://nmk.com.au/"
     Email="support@nmk.com.au" />
+  <Components Description="NMKRevit for Revit 2022">
+    <RuntimeRequirements OS="Win64" Platform="Revit" SeriesMin="R2022" SeriesMax="R2022" />
+    <ComponentEntry AppName="NMKRevit" Version="1.0.0" ModuleName="./Contents/2022/NMKRevit.addin" AppDescription="NMKRevit" />
+  </Components>
+  <Components Description="NMKRevit for Revit 2023">
+    <RuntimeRequirements OS="Win64" Platform="Revit" SeriesMin="R2023" SeriesMax="R2023" />
+    <ComponentEntry AppName="NMKRevit" Version="1.0.0" ModuleName="./Contents/2023/NMKRevit.addin" AppDescription="NMKRevit" />
+  </Components>
   <Components Description="NMKRevit for Revit 2024">
     <RuntimeRequirements OS="Win64" Platform="Revit" SeriesMin="R2024" SeriesMax="R2024" />
     <ComponentEntry AppName="NMKRevit" Version="1.0.0" ModuleName="./Contents/2024/NMKRevit.addin" AppDescription="NMKRevit" />
@@ -24,5 +32,9 @@
   <Components Description="NMKRevit for Revit 2026">
     <RuntimeRequirements OS="Win64" Platform="Revit" SeriesMin="R2026" SeriesMax="R2026" />
     <ComponentEntry AppName="NMKRevit" Version="1.0.0" ModuleName="./Contents/2026/NMKRevit.addin" AppDescription="NMKRevit" />
+  </Components>
+  <Components Description="NMKRevit for Revit 2027">
+    <RuntimeRequirements OS="Win64" Platform="Revit" SeriesMin="R2027" SeriesMax="R2027" />
+    <ComponentEntry AppName="NMKRevit" Version="1.0.0" ModuleName="./Contents/2027/NMKRevit.addin" AppDescription="NMKRevit" />
   </Components>
 </ApplicationPackage>

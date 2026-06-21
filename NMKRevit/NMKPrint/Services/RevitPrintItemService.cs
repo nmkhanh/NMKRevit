@@ -190,7 +190,7 @@ namespace NMKRevit.NMKPrint.Services
 
       try
       {
-#if D2024 || D2025 || D2026
+#if D2024 || D2025 || D2026 || D2027
         long categoryId = schedule.Definition.CategoryId.Value;
         return categoryId == (long)BuiltInCategory.OST_Sheets || categoryId == (long)BuiltInCategory.OST_Views;
 #else
@@ -206,7 +206,7 @@ namespace NMKRevit.NMKPrint.Services
 
     private static string GetElementIdValue(ElementId id)
     {
-#if D2024 || D2025 || D2026
+#if D2024 || D2025 || D2026 || D2027
       return id.Value.ToString();
 #else
       return id.IntegerValue.ToString();

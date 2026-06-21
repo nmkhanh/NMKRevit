@@ -251,7 +251,7 @@ namespace NMKRevit.NMKPrint.Services
         return;
       }
 
-#if D2022 || D2023 || D2024 || D2025 || D2026
+#if D2022 || D2023 || D2024 || D2025 || D2026 || D2027
       await RevitTask.RunAsync(app =>
       {
         ExportPdfNative(app.ActiveUIDocument.Document, job, settings, outputPath);
@@ -322,7 +322,7 @@ namespace NMKRevit.NMKPrint.Services
       }
     }
 
-#if D2022 || D2023 || D2024 || D2025 || D2026
+#if D2022 || D2023 || D2024 || D2025 || D2026 || D2027
     private void ExportPdfNative(Document doc, PrintJob job, PrintSettings settings, string outputPath)
     {
       Directory.CreateDirectory(job.OutputFolder);
@@ -378,7 +378,7 @@ namespace NMKRevit.NMKPrint.Services
     private void ApplyPrintParameters(PrintParameters parameters, PrintItem item, PrintSettings settings)
     {
       parameters.PaperPlacement = settings.PaperPlacementCenter ? PaperPlacementType.Center : PaperPlacementType.LowerLeft;
-#if D2022 || D2023 || D2024 || D2025 || D2026
+#if D2022 || D2023 || D2024 || D2025 || D2026 || D2027
       if (settings.OffsetUserDefined)
       {
         parameters.PaperPlacement = PaperPlacementType.Margins;
