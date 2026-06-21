@@ -53,7 +53,7 @@
           <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
-        <GroupBox Header="Paper Placement" Margin="0,0,10,10" Height="148" VerticalAlignment="Top">
+        <GroupBox Header="Paper Placement" Margin="0,0,10,10">
           <Grid Margin="4,6,4,4">
             <Grid.RowDefinitions>
               <RowDefinition Height="Auto" />
@@ -69,9 +69,9 @@
               <RadioButton Content="User Defined" IsChecked="{Binding Settings.OffsetUserDefined}" />
             </StackPanel>
             <StackPanel Grid.Row="3" Orientation="Horizontal" Margin="0,16,0,0">
-              <TextBlock Text="X (mm)" Margin="20,3,6,0" />
+              <TextBlock Text="X (mm)" Margin="20,5,6,0" />
               <TextBox Width="100" Text="{Binding Settings.OffsetX}" />
-              <TextBlock Text="Y (mm)" Margin="10,3,6,0" />
+              <TextBlock Text="Y (mm)" Margin="10,5,6,0" />
               <TextBox Width="100" Text="{Binding Settings.OffsetY}" />
             </StackPanel>
           </Grid>

@@ -188,13 +188,13 @@ namespace NMKRevit.NMKPrint.ViewModels
       TreeItems.Clear();
 
       var rootLookup = new Dictionary<string, PrintTreeNode>(StringComparer.OrdinalIgnoreCase);
-      foreach (PrintItem item in source.OrderBy(x => x.Number + x.Name, NaturalStringComparer.Instance))
+      foreach (PrintItem item in source)
       {
-        IReadOnlyList<string> path = item.BrowserPath.Count > 0 ? item.BrowserPath : new[] { GetFallbackGroupName(item) };
+        IReadOnlyList<string> path = item.BrowserPath;
         Dictionary<string, PrintTreeNode> currentLookup = rootLookup;
         PrintTreeNode? parent = null;
 
-        foreach (string rawPart in path)
+        foreach (string rawPart in path.Where(x => !string.IsNullOrWhiteSpace(x)))
         {
           string part = string.IsNullOrWhiteSpace(rawPart) ? "Other" : rawPart.Trim();
           if (!currentLookup.TryGetValue(part, out PrintTreeNode? folder))
@@ -234,6 +234,7 @@ namespace NMKRevit.NMKPrint.ViewModels
         }
       }
 
+      SortTreeNodes(TreeItems);
       foreach (PrintTreeNode root in TreeItems)
       {
         root.UpdateFromChildren();
@@ -242,15 +243,23 @@ namespace NMKRevit.NMKPrint.ViewModels
       _isRebuildingTree = false;
     }
 
-    private static string GetFallbackGroupName(PrintItem item)
+    private static void SortTreeNodes(ObservableCollection<PrintTreeNode> nodes)
     {
-      if (!item.IsSheet)
-      {
-        return item.View.ViewType.ToString();
-      }
+      var sorted = nodes
+        .OrderBy(x => x.IsItem ? 1 : 0)
+        .ThenBy(x => x.Name, NaturalStringComparer.Instance)
+        .ToList();
 
-      string number = item.Number?.Trim() ?? string.Empty;
-      return string.IsNullOrWhiteSpace(number) ? "Other" : number.Substring(0, 1).ToUpperInvariant();
+      nodes.Clear();
+      foreach (PrintTreeNode node in sorted)
+      {
+        if (!node.IsItem)
+        {
+          SortTreeNodes(node.Items);
+        }
+
+        nodes.Add(node);
+      }
     }
 
     private static string GetItemKey(PrintItem item)

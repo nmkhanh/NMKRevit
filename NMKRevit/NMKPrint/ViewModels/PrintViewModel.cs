@@ -14,6 +14,10 @@ using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
 using Forms = System.Windows.Forms;
+using MediaBrush = System.Windows.Media.Brush;
+using MediaColor = System.Windows.Media.Color;
+using MediaColorConverter = System.Windows.Media.ColorConverter;
+using MediaSolidColorBrush = System.Windows.Media.SolidColorBrush;
 using WpfApplication = System.Windows.Application;
 
 namespace NMKRevit.NMKPrint.ViewModels
@@ -28,6 +32,9 @@ namespace NMKRevit.NMKPrint.ViewModels
     private readonly RevitPrintItemService _printItemService;
     private readonly PrintStateService _stateService = new();
     private readonly PrintState _state;
+    private readonly Random _progressRandom = new();
+    private static readonly MediaBrush ProgressBrush = CreateBrush("#2FD25F");
+    private static readonly MediaBrush ErrorProgressBrush = CreateBrush("#FF7A00");
 
     public PrintViewModel(UIApplication uiapp)
     {
@@ -88,7 +95,6 @@ namespace NMKRevit.NMKPrint.ViewModels
 
     partial void OnIsBusyChanged(bool value)
     {
-      RefreshPreviewRows();
     }
 
     public string SelectStatus => $"{Select.SelectedItems.Count} / {Select.Items.Count} selected";
@@ -338,8 +344,6 @@ namespace NMKRevit.NMKPrint.ViewModels
           jobs = BuildJobs(doc, selected);
         });
 
-        int completed = 0;
-        var completedKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         BeginPrintProgress(jobs.Count);
         await _printService.RunAsync(
           _uiapp,
@@ -349,26 +353,14 @@ namespace NMKRevit.NMKPrint.ViewModels
           async (job, level, message, path) =>
           {
             await Logs.UpdateJobAsync(job, level, message, path);
-            if (level == LogLevel.Done || level == LogLevel.Error)
-            {
-              string key = $"{job.Format}:{job.Item.Id}";
-              if (completedKeys.Add(key))
-              {
-                completed++;
-                UpdatePrintProgress(completed, jobs.Count);
-              }
-            }
+            await UpdatePreviewProgressAsync(job, level, message);
           },
           async (level, message, path) =>
           {
             await Logs.UpdateStageAsync("PDF:Combine", "PDF", "Combine", level, message, path);
             if (level == LogLevel.Printing)
             {
-              BeginIndeterminatePrintProgress(message);
-            }
-            else
-            {
-              EndIndeterminatePrintProgress(completed, jobs.Count);
+              UpdatePrintStatus(message);
             }
           });
       }
@@ -489,6 +481,7 @@ namespace NMKRevit.NMKPrint.ViewModels
           PreviewRows.Add(new PrintPreviewRow
           {
             Index = pdfIndex++,
+            Key = GetPreviewKey(PrintFormat.PDF, item),
             Number = item.Number,
             Name = item.IsSheet ? $"[{item.Number}] - {item.Name}" : item.Name,
             Revision = item.Revision,
@@ -507,6 +500,7 @@ namespace NMKRevit.NMKPrint.ViewModels
           PreviewRows.Add(new PrintPreviewRow
           {
             Index = 0,
+            Key = GetPreviewKey(PrintFormat.DWG, item),
             Number = item.Number,
             Name = item.Name,
             Revision = item.Revision,
@@ -563,6 +557,7 @@ namespace NMKRevit.NMKPrint.ViewModels
           rows.Add(new PrintPreviewRow
           {
             Index = pdfIndex++,
+            Key = GetPreviewKey(PrintFormat.PDF, item),
             Number = item.Number,
             Name = pdfName,
             Revision = item.Revision,
@@ -581,6 +576,7 @@ namespace NMKRevit.NMKPrint.ViewModels
           rows.Add(new PrintPreviewRow
           {
             Index = 0,
+            Key = GetPreviewKey(PrintFormat.DWG, item),
             Number = item.Number,
             Name = GetPreviewName(doc, item, PrintFormat.DWG),
             Revision = item.Revision,
@@ -623,24 +619,13 @@ namespace NMKRevit.NMKPrint.ViewModels
       OnUiThread(() =>
       {
         PrintProgressValue = 0;
-        PrintStatus = $"0 / {total} (0 %)";
-        IsPrintProgressIndeterminate = false;
+        PrintStatus = total == 0 ? "Printing..." : $"Printing {total} files...";
+        IsPrintProgressIndeterminate = true;
         IsPrintStatus = true;
       });
     }
 
-    private void UpdatePrintProgress(int current, int total)
-    {
-      double progress = total == 0 ? 0 : Math.Round(current * 100.0 / total, 0);
-      OnUiThread(() =>
-      {
-        IsPrintProgressIndeterminate = false;
-        PrintProgressValue = progress;
-        PrintStatus = $"{current} / {total} ({progress:0} %)";
-      });
-    }
-
-    private void BeginIndeterminatePrintProgress(string message)
+    private void UpdatePrintStatus(string message)
     {
       OnUiThread(() =>
       {
@@ -650,13 +635,81 @@ namespace NMKRevit.NMKPrint.ViewModels
       });
     }
 
-    private void EndIndeterminatePrintProgress(int current, int total)
+    private async Task UpdatePreviewProgressAsync(PrintJob job, LogLevel level, string message)
     {
-      OnUiThread(() =>
+      PrintPreviewRow? row = FindPreviewRow(job);
+      if (row == null)
       {
-        IsPrintProgressIndeterminate = false;
-        UpdatePrintProgress(current, total);
-      });
+        return;
+      }
+
+      if (level == LogLevel.Printing)
+      {
+        OnUiThread(() =>
+        {
+          row.IsPrinting = true;
+          row.ProgressBrush = ProgressBrush;
+          row.ProgressValue = 0;
+          row.ProgressText = "0 %";
+        });
+        await AnimatePreviewProgressAsync(row, _progressRandom.Next(40, 61), 8);
+        return;
+      }
+
+      if (level == LogLevel.Done)
+      {
+        await AnimatePreviewProgressAsync(row, 100, 5);
+        OnUiThread(() =>
+        {
+          row.IsPrinting = false;
+          row.ProgressValue = 100;
+          row.ProgressBrush = ProgressBrush;
+          row.ProgressText = "100";
+        });
+        return;
+      }
+
+      if (level == LogLevel.Error)
+      {
+        OnUiThread(() =>
+        {
+          row.IsPrinting = false;
+          row.ProgressBrush = ErrorProgressBrush;
+          row.ProgressText = "Error";
+        });
+      }
+    }
+
+    private async Task AnimatePreviewProgressAsync(PrintPreviewRow row, double target, int delay)
+    {
+      while (row.ProgressValue < target)
+      {
+        double next = Math.Min(target, row.ProgressValue + 2);
+        OnUiThread(() =>
+        {
+          row.ProgressValue = next;
+          row.ProgressText = $"{next:0} %";
+        });
+        await Task.Delay(delay);
+      }
+    }
+
+    private PrintPreviewRow? FindPreviewRow(PrintJob job)
+    {
+      string key = GetPreviewKey(job.Format, job.Item);
+      return PreviewRows.FirstOrDefault(x => x.Key.Equals(key, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static string GetPreviewKey(PrintFormat format, PrintItem item)
+    {
+      return $"{format}:{item.Id}";
+    }
+
+    private static MediaBrush CreateBrush(string hex)
+    {
+      var brush = new MediaSolidColorBrush((MediaColor)MediaColorConverter.ConvertFromString(hex));
+      brush.Freeze();
+      return brush;
     }
 
     private static void OnUiThread(Action action)

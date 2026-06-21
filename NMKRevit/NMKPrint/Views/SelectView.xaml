@@ -62,6 +62,7 @@
         <RowDefinition Height="Auto" />
         <RowDefinition Height="Auto" />
         <RowDefinition Height="*" />
+        <RowDefinition Height="128" />
       </Grid.RowDefinitions>
 
       <GroupBox Header="Select by" Margin="0,0,0,8">
@@ -101,12 +102,11 @@
         </Button>
       </Grid>
 
-      <Border Grid.Row="2" Background="White" BorderBrush="#BFD3E8" BorderThickness="1">
+      <Border Grid.Row="2" Background="White" BorderBrush="#BFD3E8" BorderThickness="1" Margin="0,0,0,6">
         <TreeView
+          HorizontalAlignment="Left"
           ItemsSource="{Binding TreeItems}"
-          BorderThickness="0"
-          ScrollViewer.VerticalScrollBarVisibility="Auto"
-          ScrollViewer.HorizontalScrollBarVisibility="Auto">
+          BorderThickness="0">
           <TreeView.ItemContainerStyle>
             <Style TargetType="TreeViewItem">
               <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}" />
@@ -146,6 +146,10 @@
           </TreeView.Resources>
         </TreeView>
       </Border>
+
+      <views:PrintLogView
+        Grid.Row="3"
+        DataContext="{Binding DataContext.Logs, RelativeSource={RelativeSource AncestorType=Window}}" />
     </Grid>
 
     <GridSplitter
@@ -221,11 +225,6 @@
       </StackPanel>
 
       <Grid Grid.Row="2">
-        <Grid.ColumnDefinitions>
-          <ColumnDefinition Width="*" MinWidth="420" />
-          <ColumnDefinition Width="6" />
-          <ColumnDefinition Width="220" MinWidth="170" />
-        </Grid.ColumnDefinitions>
         <Border Background="White" BorderBrush="#BFD3E8" BorderThickness="1" Margin="0">
           <DataGrid ItemsSource="{Binding DataContext.PreviewRows, RelativeSource={RelativeSource AncestorType=Window}}">
             <DataGrid.RowStyle>
@@ -245,18 +244,41 @@
               <DataGridTextColumn Header="Size" Width="84" Binding="{Binding Size}" IsReadOnly="True" ElementStyle="{StaticResource PreviewCenterTextStyle}" />
               <DataGridTextColumn Header="Format" Width="76" Binding="{Binding Format}" IsReadOnly="True" ElementStyle="{StaticResource PreviewCenterTextStyle}" />
               <DataGridTextColumn Header="Orientation" Width="100" Binding="{Binding Orientation}" IsReadOnly="True" ElementStyle="{StaticResource PreviewCenterTextStyle}" />
+              <DataGridTemplateColumn Header="Progress" Width="112" IsReadOnly="True">
+                <DataGridTemplateColumn.CellTemplate>
+                  <DataTemplate>
+                    <Grid MinWidth="80" Height="20" VerticalAlignment="Center" Margin="4,0">
+                      <ProgressBar
+                        Minimum="0"
+                        Maximum="100"
+                        Value="{Binding ProgressValue}"
+                        Foreground="{Binding ProgressBrush}"
+                        Background="#EEF2F7"
+                        BorderThickness="0"
+                        Visibility="{Binding IsProgressBarVisible, Converter={StaticResource BoolToVisibilityConverter}}" />
+                      <TextBlock
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center"
+                        Text="{Binding ProgressText}"
+                        Foreground="{Binding ProgressBrush}"
+                        FontWeight="SemiBold"
+                        FontSize="11"
+                        Visibility="{Binding IsProgressTextVisible, Converter={StaticResource BoolToVisibilityConverter}}" />
+                      <TextBlock
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center"
+                        Text="{Binding ProgressText}"
+                        Foreground="White"
+                        FontWeight="SemiBold"
+                        FontSize="11"
+                        Visibility="{Binding IsProgressBarVisible, Converter={StaticResource BoolToVisibilityConverter}}" />
+                    </Grid>
+                  </DataTemplate>
+                </DataGridTemplateColumn.CellTemplate>
+              </DataGridTemplateColumn>
             </DataGrid.Columns>
           </DataGrid>
         </Border>
-        <GridSplitter
-          Grid.Column="1"
-          Width="6"
-          HorizontalAlignment="Stretch"
-          VerticalAlignment="Stretch"
-          Background="Transparent"
-          ResizeBehavior="PreviousAndNext"
-          ShowsPreview="True" />
-        <views:PrintLogView Grid.Column="2" DataContext="{Binding DataContext.Logs, RelativeSource={RelativeSource AncestorType=Window}}" />
       </Grid>
 
       <GroupBox Grid.Row="3" Header="Print" Margin="0,6,0,0">

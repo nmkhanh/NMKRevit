@@ -7,7 +7,7 @@
   </UserControl.Resources>
   <Border Background="#FFFFFF" BorderBrush="#D5DAE0" BorderThickness="1">
     <DockPanel>
-      <TextBlock DockPanel.Dock="Top" Text="Log" FontWeight="SemiBold" Margin="10,8" />
+      <TextBlock DockPanel.Dock="Top" Text="Log" FontWeight="SemiBold" Margin="8,5" />
       <ListBox
         ItemsSource="{Binding Entries}"
         BorderThickness="0"
@@ -33,14 +33,14 @@
           <DataTemplate>
             <Border
               MinHeight="30"
-              Padding="4,0"
+              Padding="6,0"
               BorderBrush="#EEF2F7"
               BorderThickness="0,0,0,1"
               ToolTip="{Binding FilePath}">
               <Grid>
                 <Grid.ColumnDefinitions>
-                  <ColumnDefinition Width="38" />
-                  <ColumnDefinition Width="58" />
+                  <ColumnDefinition Width="48" />
+                  <ColumnDefinition Width="70" />
                   <ColumnDefinition Width="*" />
                 </Grid.ColumnDefinitions>
                 <TextBlock
@@ -54,32 +54,12 @@
                   VerticalAlignment="Center"
                   TextTrimming="CharacterEllipsis"
                   Foreground="{Binding Foreground}" />
-                <Grid Grid.Column="2" MinWidth="80" VerticalAlignment="Center">
-                  <ProgressBar
-                    Height="18"
-                    Minimum="0"
-                    Maximum="100"
-                    IsIndeterminate="{Binding IsIndeterminate}"
-                    Value="{Binding ProgressValue}"
-                    Foreground="{Binding Foreground}"
-                    Background="#EEF2F7"
-                    BorderThickness="0"
-                    Visibility="{Binding IsProgressVisible, Converter={StaticResource BoolToVisibilityConverter}}" />
-                  <TextBlock
-                    Text="{Binding ProgressText}"
-                    HorizontalAlignment="Center"
-                    VerticalAlignment="Center"
-                    FontSize="11"
-                    FontWeight="SemiBold"
-                    Foreground="{Binding ProgressTextForeground}"
-                    Visibility="{Binding IsProgressVisible, Converter={StaticResource BoolToVisibilityConverter}}" />
-                  <TextBlock
-                    Text="{Binding Message}"
-                    TextWrapping="Wrap"
-                    VerticalAlignment="Center"
-                    Foreground="{Binding Foreground}"
-                    Visibility="{Binding IsStatusVisible, Converter={StaticResource BoolToVisibilityConverter}}" />
-                </Grid>
+                <TextBlock
+                  Grid.Column="2"
+                  Text="{Binding Message}"
+                  TextWrapping="Wrap"
+                  VerticalAlignment="Center"
+                  Foreground="{Binding Foreground}" />
               </Grid>
             </Border>
           </DataTemplate>
