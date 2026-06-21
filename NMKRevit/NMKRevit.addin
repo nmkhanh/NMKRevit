@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8" standalone="no"?>
+<RevitAddIns>
+	<AddIn Type="Application">
+		<Name>NMKRevit</Name>
+		<Assembly>NMKRevit.dll</Assembly>
+		<FullClassName>NMKRevit.NMKRevitApp</FullClassName>
+		<AddInId>49A15C5E-4FD6-4A20-B217-BFAC57C5FCCC</AddInId>
+		<Text>NMKRevit</Text>
+		<VisibilityMode>AlwaysVisible</VisibilityMode>
+		<LanguageType>Unknown</LanguageType>
+		<VendorId>NMK</VendorId>
+		<VendorDescription>https://nmk.com.au/</VendorDescription>
+	</AddIn>
+</RevitAddIns>

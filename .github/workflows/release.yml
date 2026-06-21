@@ -1,0 +1,67 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build-release:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            8.0.x
+
+      - name: Build Revit 2024
+        run: dotnet build NMKRevit.sln -c D2024 -v minimal
+
+      - name: Build Revit 2025
+        run: dotnet build NMKRevit.sln -c D2025 -v minimal
+
+      - name: Build Revit 2026
+        run: dotnet build NMKRevit.sln -c D2026 -v minimal
+
+      - name: Create bundle
+        shell: pwsh
+        run: |
+          $bundleRoot = "artifacts/NMKRevit.bundle"
+          $sourceAddin = "NMKRevit/NMKRevit.addin"
+          New-Item -ItemType Directory -Force -Path $bundleRoot | Out-Null
+          Copy-Item -Path "deploy/NMKRevit.bundle/PackageContents.xml" -Destination "$bundleRoot/PackageContents.xml" -Force
+
+          $versions = @{
+            "2024" = "NMKRevit/bin/Debug/2024/net48"
+            "2025" = "NMKRevit/bin/Debug/2025/net80-windows"
+            "2026" = "NMKRevit/bin/Debug/2026/net80-windows"
+          }
+
+          foreach ($version in $versions.Keys) {
+            $source = $versions[$version]
+            $target = Join-Path $bundleRoot "Contents/$version"
+            New-Item -ItemType Directory -Force -Path $target | Out-Null
+            Copy-Item -Path (Join-Path $source "*") -Destination $target -Recurse -Force
+            Copy-Item -Path $sourceAddin -Destination (Join-Path $target "NMKRevit.addin") -Force
+          }
+
+      - name: Zip bundle
+        shell: pwsh
+        run: |
+          Compress-Archive -Path "artifacts/NMKRevit.bundle" -DestinationPath "artifacts/NMKRevit-${{ github.ref_name }}.zip" -Force
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: NMKRevit ${{ github.ref_name }}
+          tag_name: ${{ github.ref_name }}
+          generate_release_notes: true
+          files: artifacts/NMKRevit-${{ github.ref_name }}.zip

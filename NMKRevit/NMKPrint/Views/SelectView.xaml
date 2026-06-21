@@ -1,0 +1,332 @@
+<UserControl
+  x:Class="NMKRevit.NMKPrint.Views.SelectView"
+  xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+  xmlns:icon="clr-namespace:Material.Icons.WPF;assembly=Material.Icons.WPF"
+  xmlns:model="clr-namespace:NMKRevit.NMKPrint.Models"
+  xmlns:views="clr-namespace:NMKRevit.NMKPrint.Views">
+  <UserControl.Resources>
+    <BooleanToVisibilityConverter x:Key="BoolToVisibilityConverter" />
+    <SolidColorBrush x:Key="PrimaryBrush" Color="#2FD25F" />
+    <SolidColorBrush x:Key="PrimaryHoverBrush" Color="#31C85D" />
+    <SolidColorBrush x:Key="WarningBrush" Color="#FF7A00" />
+    <Style x:Key="CustomFileNameButtonStyle" TargetType="Button">
+      <Setter Property="Background" Value="{StaticResource PrimaryBrush}" />
+      <Setter Property="Foreground" Value="White" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="MinHeight" Value="30" />
+      <Setter Property="Padding" Value="8,0" />
+      <Setter Property="Cursor" Value="Hand" />
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="Button">
+            <Border Background="{TemplateBinding Background}" CornerRadius="6">
+              <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsEnabled" Value="False">
+                <Setter Property="Background" Value="#E6E7EC" />
+                <Setter Property="Foreground" Value="#9CA3AF" />
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+      <Style.Triggers>
+        <Trigger Property="IsMouseOver" Value="True">
+          <Setter Property="Background" Value="{StaticResource PrimaryHoverBrush}" />
+        </Trigger>
+        <DataTrigger Binding="{Binding CustomName.HasAppliedRules}" Value="True">
+          <Setter Property="Background" Value="{StaticResource WarningBrush}" />
+        </DataTrigger>
+      </Style.Triggers>
+    </Style>
+    <Style x:Key="PreviewCenterTextStyle" TargetType="TextBlock">
+      <Setter Property="VerticalAlignment" Value="Center" />
+      <Setter Property="TextAlignment" Value="Center" />
+    </Style>
+    <Style x:Key="PreviewLeftTextStyle" TargetType="TextBlock">
+      <Setter Property="VerticalAlignment" Value="Center" />
+      <Setter Property="TextAlignment" Value="Left" />
+    </Style>
+  </UserControl.Resources>
+  <Grid>
+    <Grid.ColumnDefinitions>
+      <ColumnDefinition Width="340" MinWidth="240" />
+      <ColumnDefinition Width="6" />
+      <ColumnDefinition Width="*" MinWidth="620" />
+    </Grid.ColumnDefinitions>
+
+    <Grid Margin="0,0,4,0">
+      <Grid.RowDefinitions>
+        <RowDefinition Height="Auto" />
+        <RowDefinition Height="Auto" />
+        <RowDefinition Height="*" />
+      </Grid.RowDefinitions>
+
+      <GroupBox Header="Select by" Margin="0,0,0,8">
+        <Grid Margin="6">
+          <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+          </Grid.RowDefinitions>
+          <ComboBox Height="30" ItemsSource="{Binding SelectionSources}" SelectedItem="{Binding SelectedSource}" />
+          <Grid Grid.Row="1" Margin="0,8,0,0">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="128" />
+              <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <Button Content="Save ViewSheetSet" Height="30" Command="{Binding DataContext.SaveViewSheetSetCommand, RelativeSource={RelativeSource AncestorType=Window}}" />
+            <TextBox Grid.Column="1" Margin="8,0,0,0" Height="30" Text="{Binding ViewSheetSetName, UpdateSourceTrigger=PropertyChanged}" />
+          </Grid>
+        </Grid>
+      </GroupBox>
+
+      <Grid Grid.Row="1" Margin="0,0,0,8">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="Auto" />
+          <ColumnDefinition Width="Auto" />
+          <ColumnDefinition Width="*" />
+          <ColumnDefinition Width="36" />
+        </Grid.ColumnDefinitions>
+        <RadioButton Content="All Sheets" IsChecked="{Binding ShowSheets}" VerticalAlignment="Center" Margin="0,0,12,0" />
+        <RadioButton Grid.Column="1" Content="All Views" IsChecked="{Binding ShowViews}" VerticalAlignment="Center" Margin="0,0,12,0" />
+        <TextBox Grid.Column="2" Height="30" Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}" />
+        <Button Grid.Column="3" Width="30" Margin="6,0,0,0" Command="{Binding DataContext.LoadCommand, RelativeSource={RelativeSource AncestorType=Window}}" ToolTip="Refresh">
+          <icon:MaterialIcon
+            Kind="Sync"
+            Width="18"
+            Height="18"
+            Foreground="White" />
+        </Button>
+      </Grid>
+
+      <Border Grid.Row="2" Background="White" BorderBrush="#BFD3E8" BorderThickness="1">
+        <TreeView
+          ItemsSource="{Binding TreeItems}"
+          BorderThickness="0"
+          ScrollViewer.VerticalScrollBarVisibility="Auto"
+          ScrollViewer.HorizontalScrollBarVisibility="Auto">
+          <TreeView.ItemContainerStyle>
+            <Style TargetType="TreeViewItem">
+              <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}" />
+              <Setter Property="Visibility" Value="{Binding IsVisible, Converter={StaticResource BoolToVisibilityConverter}}" />
+              <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+              <Setter Property="Padding" Value="0" />
+            </Style>
+          </TreeView.ItemContainerStyle>
+          <TreeView.Resources>
+            <HierarchicalDataTemplate DataType="{x:Type model:PrintTreeNode}" ItemsSource="{Binding Items}">
+              <Border
+                Height="24"
+                MinWidth="{Binding ActualWidth, RelativeSource={RelativeSource AncestorType=TreeView}}"
+                Padding="2,0"
+                HorizontalAlignment="Stretch"
+                PreviewMouseLeftButtonDown="TreeNode_PreviewMouseLeftButtonDown">
+                <Border.Style>
+                  <Style TargetType="Border">
+                    <Setter Property="Background" Value="Transparent" />
+                    <Style.Triggers>
+                      <DataTrigger Binding="{Binding IsMultiSelected}" Value="True">
+                        <Setter Property="Background" Value="#DCEBFF" />
+                      </DataTrigger>
+                    </Style.Triggers>
+                  </Style>
+                </Border.Style>
+                <CheckBox
+                  Height="24"
+                  VerticalAlignment="Center"
+                  VerticalContentAlignment="Center"
+                  IsThreeState="True"
+                  PreviewMouseLeftButtonDown="TreeCheckBox_PreviewMouseLeftButtonDown"
+                  IsChecked="{Binding IsChecked, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                  Content="{Binding DisplayName}" />
+              </Border>
+            </HierarchicalDataTemplate>
+          </TreeView.Resources>
+        </TreeView>
+      </Border>
+    </Grid>
+
+    <GridSplitter
+      Grid.Column="1"
+      Width="6"
+      HorizontalAlignment="Stretch"
+      VerticalAlignment="Stretch"
+      Background="Transparent"
+      ResizeBehavior="PreviousAndNext"
+      ShowsPreview="True" />
+
+    <Grid Grid.Column="2">
+      <Grid.RowDefinitions>
+        <RowDefinition Height="Auto" />
+        <RowDefinition Height="Auto" />
+        <RowDefinition Height="*" />
+        <RowDefinition Height="Auto" />
+      </Grid.RowDefinitions>
+
+      <GroupBox Header="File" Margin="0,0,0,6">
+        <Grid DataContext="{Binding DataContext, RelativeSource={RelativeSource AncestorType=Window}}" Margin="6">
+          <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+          </Grid.RowDefinitions>
+          <Grid>
+            <RadioButton Content="Create separate files" IsChecked="{Binding Settings.CreateSeparateFiles}" />
+            <RadioButton Margin="210,0,0,0" Content="Combine multiple views/sheets into a single file" IsChecked="{Binding Settings.CombinePdf}" />
+          </Grid>
+          <Grid Grid.Row="1" Margin="0,10,0,0">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="160" />
+              <ColumnDefinition Width="110" />
+              <ColumnDefinition Width="54" />
+              <ColumnDefinition Width="130" />
+              <ColumnDefinition Width="54" />
+              <ColumnDefinition Width="*" />
+              <ColumnDefinition Width="132" />
+            </Grid.ColumnDefinitions>
+            <CheckBox Content="Use naming convention:" IsChecked="{Binding Settings.UseNamingConvention}" VerticalAlignment="Center" />
+            <TextBox Grid.Column="1" Height="30" IsEnabled="{Binding Settings.UseNamingConvention}" Text="{Binding Settings.NamingDate, UpdateSourceTrigger=PropertyChanged}" TextAlignment="Center" />
+            <TextBox Grid.Column="2" Margin="8,0" Height="30" Text="-" TextAlignment="Center" IsEnabled="False" />
+            <TextBox Grid.Column="3" Height="30" IsEnabled="{Binding Settings.UseNamingConvention}" Text="{Binding Settings.NamingProjectCode, UpdateSourceTrigger=PropertyChanged}" TextAlignment="Center" />
+            <TextBox Grid.Column="4" Margin="8,0" Height="30" Text="-" TextAlignment="Center" IsEnabled="False" />
+            <TextBox Grid.Column="5" Height="30" IsEnabled="{Binding Settings.UseNamingConvention}" Text="{Binding Settings.NamingNode, UpdateSourceTrigger=PropertyChanged}" TextAlignment="Center" />
+            <Button
+              Grid.Column="6"
+              Margin="10,0,0,0"
+              Content="Custom File Name"
+              Command="{Binding OpenCustomNameCommand}"
+              IsEnabled="{Binding Settings.CanUseCustomName}"
+              Style="{StaticResource CustomFileNameButtonStyle}" />
+          </Grid>
+          <Grid Grid.Row="2" Margin="0,10,0,0">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="160" />
+              <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <TextBlock Text="File Combine Name :" VerticalAlignment="Center" />
+            <TextBox Grid.Column="1" Height="30" Text="{Binding Settings.EffectiveFileCombineName, UpdateSourceTrigger=PropertyChanged}" IsReadOnly="{Binding Settings.UseNamingConvention}" TextAlignment="Center" />
+          </Grid>
+        </Grid>
+      </GroupBox>
+
+      <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="2,0,0,4" DataContext="{Binding DataContext, RelativeSource={RelativeSource AncestorType=Window}}">
+        <CheckBox
+          Content="PDF"
+          Foreground="{StaticResource PrimaryHoverBrush}" IsChecked="{Binding Settings.ExportPdf}" FontWeight="SemiBold" Margin="0,0,20,0" />
+        <CheckBox
+          Content="DWG"
+          Foreground="{StaticResource PrimaryHoverBrush}" IsChecked="{Binding Settings.ExportDwg}" FontWeight="SemiBold" />
+      </StackPanel>
+
+      <Grid Grid.Row="2">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="*" MinWidth="420" />
+          <ColumnDefinition Width="6" />
+          <ColumnDefinition Width="220" MinWidth="170" />
+        </Grid.ColumnDefinitions>
+        <Border Background="White" BorderBrush="#BFD3E8" BorderThickness="1" Margin="0">
+          <DataGrid ItemsSource="{Binding DataContext.PreviewRows, RelativeSource={RelativeSource AncestorType=Window}}">
+            <DataGrid.RowStyle>
+              <Style TargetType="DataGridRow">
+                <Setter Property="Height" Value="30" />
+                <Setter Property="Background" Value="Transparent" />
+                <Setter Property="VerticalContentAlignment" Value="Center" />
+                <Setter Property="Foreground" Value="{Binding Foreground}" />
+              </Style>
+            </DataGrid.RowStyle>
+            <DataGrid.Columns>
+              <DataGridTextColumn Header="Index" Width="58" Binding="{Binding Index}" IsReadOnly="True" ElementStyle="{StaticResource PreviewCenterTextStyle}" />
+              <DataGridTextColumn Header="Number/Id" Width="110" Binding="{Binding Number}" IsReadOnly="True" ElementStyle="{StaticResource PreviewCenterTextStyle}" />
+              <DataGridTextColumn Header="Sheet Name/View Name" Width="*" Binding="{Binding Name}" IsReadOnly="True" ElementStyle="{StaticResource PreviewLeftTextStyle}" />
+              <DataGridTextColumn Header="Revision" Width="82" Binding="{Binding Revision}" IsReadOnly="True" ElementStyle="{StaticResource PreviewCenterTextStyle}" />
+              <DataGridTextColumn Header="RevisionDate" Width="100" Binding="{Binding RevisionDate}" IsReadOnly="True" ElementStyle="{StaticResource PreviewCenterTextStyle}" />
+              <DataGridTextColumn Header="Size" Width="84" Binding="{Binding Size}" IsReadOnly="True" ElementStyle="{StaticResource PreviewCenterTextStyle}" />
+              <DataGridTextColumn Header="Format" Width="76" Binding="{Binding Format}" IsReadOnly="True" ElementStyle="{StaticResource PreviewCenterTextStyle}" />
+              <DataGridTextColumn Header="Orientation" Width="100" Binding="{Binding Orientation}" IsReadOnly="True" ElementStyle="{StaticResource PreviewCenterTextStyle}" />
+            </DataGrid.Columns>
+          </DataGrid>
+        </Border>
+        <GridSplitter
+          Grid.Column="1"
+          Width="6"
+          HorizontalAlignment="Stretch"
+          VerticalAlignment="Stretch"
+          Background="Transparent"
+          ResizeBehavior="PreviousAndNext"
+          ShowsPreview="True" />
+        <views:PrintLogView Grid.Column="2" DataContext="{Binding DataContext.Logs, RelativeSource={RelativeSource AncestorType=Window}}" />
+      </Grid>
+
+      <GroupBox Grid.Row="3" Header="Print" Margin="0,6,0,0">
+        <Grid DataContext="{Binding DataContext, RelativeSource={RelativeSource AncestorType=Window}}" Margin="6">
+          <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+          </Grid.RowDefinitions>
+          <Grid>
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="Auto" />
+              <ColumnDefinition Width="Auto" />
+              <ColumnDefinition Width="*" />
+              <ColumnDefinition Width="Auto" />
+              <ColumnDefinition Width="78" />
+            </Grid.ColumnDefinitions>
+            <RadioButton Content="Save all files in the same folder location" IsChecked="{Binding Settings.SaveAllInSameFolder}" VerticalAlignment="Center" />
+            <RadioButton Grid.Column="1" Margin="40,0,0,0" Content="Save and split files by file format" IsChecked="{Binding Settings.SplitByFormat}" VerticalAlignment="Center" />
+            <TextBlock Grid.Column="3" VerticalAlignment="Center" Margin="0,0,8,0" Text="Print timeout (s) :" />
+            <TextBox Grid.Column="4" Width="78" Height="30" Text="{Binding Settings.TimeoutSeconds}" TextAlignment="Center" />
+          </Grid>
+          <Grid Grid.Row="1" Margin="0,8,0,0">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="150" />
+              <ColumnDefinition Width="*" />
+              <ColumnDefinition Width="36" />
+            </Grid.ColumnDefinitions>
+            <Button Content="Open Folder Selection" Command="{Binding OpenFolderCommand}" />
+            <TextBox Grid.Column="1" Margin="8,0" Height="30" Text="{Binding Settings.OutputFolder, UpdateSourceTrigger=PropertyChanged}" />
+            <Button Grid.Column="2" Content="..." Command="{Binding SelectFolderCommand}" />
+          </Grid>
+          <Grid Grid.Row="2" Margin="0,8,0,0">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="*" />
+              <ColumnDefinition Width="92" />
+            </Grid.ColumnDefinitions>
+            <Grid Height="30">
+              <Border Background="#E5E7EB" BorderBrush="#C7D2DE" BorderThickness="1" />
+              <ProgressBar
+                Minimum="0"
+                Maximum="100"
+                IsIndeterminate="{Binding IsPrintProgressIndeterminate}"
+                Value="{Binding PrintProgressValue}"
+                Foreground="{StaticResource PrimaryBrush}"
+                Background="#E5E7EB"
+                BorderThickness="0"
+                Visibility="{Binding IsPrintStatus, Converter={StaticResource BoolToVisibilityConverter}}" />
+              <TextBlock
+                HorizontalAlignment="Center"
+                VerticalAlignment="Center"
+                Text="{Binding PrintStatus}"
+                Visibility="{Binding IsPrintStatus, Converter={StaticResource BoolToVisibilityConverter}}" />
+              <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center" Text="{Binding SelectStatus}">
+                <TextBlock.Style>
+                  <Style TargetType="TextBlock">
+                    <Setter Property="Visibility" Value="Visible" />
+                    <Style.Triggers>
+                      <DataTrigger Binding="{Binding IsPrintStatus}" Value="True">
+                        <Setter Property="Visibility" Value="Collapsed" />
+                      </DataTrigger>
+                    </Style.Triggers>
+                  </Style>
+                </TextBlock.Style>
+              </TextBlock>
+            </Grid>
+            <Button Grid.Column="1" Margin="10,0,0,0" Content="Print" Command="{Binding RunCommand}" />
+          </Grid>
+        </Grid>
+      </GroupBox>
+    </Grid>
+  </Grid>
+</UserControl>

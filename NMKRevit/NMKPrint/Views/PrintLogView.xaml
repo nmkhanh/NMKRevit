@@ -1,0 +1,90 @@
+<UserControl
+  x:Class="NMKRevit.NMKPrint.Views.PrintLogView"
+  xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <UserControl.Resources>
+    <BooleanToVisibilityConverter x:Key="BoolToVisibilityConverter" />
+  </UserControl.Resources>
+  <Border Background="#FFFFFF" BorderBrush="#D5DAE0" BorderThickness="1">
+    <DockPanel>
+      <TextBlock DockPanel.Dock="Top" Text="Log" FontWeight="SemiBold" Margin="10,8" />
+      <ListBox
+        ItemsSource="{Binding Entries}"
+        BorderThickness="0"
+        Background="White"
+        ScrollViewer.VerticalScrollBarVisibility="Auto"
+        ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+        <ListBox.ItemContainerStyle>
+          <Style TargetType="ListBoxItem">
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Template">
+              <Setter.Value>
+                <ControlTemplate TargetType="ListBoxItem">
+                  <ContentPresenter />
+                </ControlTemplate>
+              </Setter.Value>
+            </Setter>
+          </Style>
+        </ListBox.ItemContainerStyle>
+        <ListBox.ItemTemplate>
+          <DataTemplate>
+            <Border
+              MinHeight="30"
+              Padding="4,0"
+              BorderBrush="#EEF2F7"
+              BorderThickness="0,0,0,1"
+              ToolTip="{Binding FilePath}">
+              <Grid>
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="38" />
+                  <ColumnDefinition Width="58" />
+                  <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <TextBlock
+                  Text="{Binding Format}"
+                  VerticalAlignment="Center"
+                  Foreground="{Binding Foreground}"
+                  FontWeight="SemiBold" />
+                <TextBlock
+                  Grid.Column="1"
+                  Text="{Binding SheetNumber}"
+                  VerticalAlignment="Center"
+                  TextTrimming="CharacterEllipsis"
+                  Foreground="{Binding Foreground}" />
+                <Grid Grid.Column="2" MinWidth="80" VerticalAlignment="Center">
+                  <ProgressBar
+                    Height="18"
+                    Minimum="0"
+                    Maximum="100"
+                    IsIndeterminate="{Binding IsIndeterminate}"
+                    Value="{Binding ProgressValue}"
+                    Foreground="{Binding Foreground}"
+                    Background="#EEF2F7"
+                    BorderThickness="0"
+                    Visibility="{Binding IsProgressVisible, Converter={StaticResource BoolToVisibilityConverter}}" />
+                  <TextBlock
+                    Text="{Binding ProgressText}"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center"
+                    FontSize="11"
+                    FontWeight="SemiBold"
+                    Foreground="{Binding ProgressTextForeground}"
+                    Visibility="{Binding IsProgressVisible, Converter={StaticResource BoolToVisibilityConverter}}" />
+                  <TextBlock
+                    Text="{Binding Message}"
+                    TextWrapping="Wrap"
+                    VerticalAlignment="Center"
+                    Foreground="{Binding Foreground}"
+                    Visibility="{Binding IsStatusVisible, Converter={StaticResource BoolToVisibilityConverter}}" />
+                </Grid>
+              </Grid>
+            </Border>
+          </DataTemplate>
+        </ListBox.ItemTemplate>
+      </ListBox>
+    </DockPanel>
+  </Border>
+</UserControl>

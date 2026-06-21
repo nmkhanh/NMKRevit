@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ApplicationPackage
+  SchemaVersion="1.0"
+  AutodeskProduct="Revit"
+  ProductType="Application"
+  Name="NMKRevit"
+  Description="NMK Revit tools"
+  AppVersion="1.0.0"
+  FriendlyVersion="1.0.0"
+  ProductCode="{49A15C5E-4FD6-4A20-B217-BFAC57C5FCCC}"
+  UpgradeCode="{5B8EED0C-8DB0-4ED5-A08D-B0768688711B}">
+  <CompanyDetails
+    Name="NMK"
+    Url="https://nmk.com.au/"
+    Email="support@nmk.com.au" />
+  <Components Description="NMKRevit for Revit 2024">
+    <RuntimeRequirements OS="Win64" Platform="Revit" SeriesMin="R2024" SeriesMax="R2024" />
+    <ComponentEntry AppName="NMKRevit" Version="1.0.0" ModuleName="./Contents/2024/NMKRevit.addin" AppDescription="NMKRevit" />
+  </Components>
+  <Components Description="NMKRevit for Revit 2025">
+    <RuntimeRequirements OS="Win64" Platform="Revit" SeriesMin="R2025" SeriesMax="R2025" />
+    <ComponentEntry AppName="NMKRevit" Version="1.0.0" ModuleName="./Contents/2025/NMKRevit.addin" AppDescription="NMKRevit" />
+  </Components>
+  <Components Description="NMKRevit for Revit 2026">
+    <RuntimeRequirements OS="Win64" Platform="Revit" SeriesMin="R2026" SeriesMax="R2026" />
+    <ComponentEntry AppName="NMKRevit" Version="1.0.0" ModuleName="./Contents/2026/NMKRevit.addin" AppDescription="NMKRevit" />
+  </Components>
+</ApplicationPackage>

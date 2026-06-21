@@ -1,0 +1,327 @@
+<Window
+  x:Class="NMKRevit.NMKPrint.Views.PrintWindow"
+  xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+  xmlns:i="http://schemas.microsoft.com/xaml/behaviors"
+  xmlns:icon="clr-namespace:Material.Icons.WPF;assembly=Material.Icons.WPF"
+  xmlns:views="clr-namespace:NMKRevit.NMKPrint.Views"
+  Title="NMK Print"
+  Width="1500"
+  Height="850"
+  MinWidth="1280"
+  MinHeight="720"
+  WindowStartupLocation="CenterScreen">
+  <Window.Resources>
+    <BooleanToVisibilityConverter x:Key="BoolToVisibilityConverter" />
+    <SolidColorBrush x:Key="PrimaryBrush" Color="#2FD25F" />
+    <SolidColorBrush x:Key="PrimaryHoverBrush" Color="#31C85D" />
+    <SolidColorBrush x:Key="WarningBrush" Color="#FF7A00" />
+    <SolidColorBrush x:Key="BorderBrush" Color="#D4D8E1" />
+    <SolidColorBrush x:Key="PanelBrush" Color="#FFFFFF" />
+    <Style TargetType="Button">
+      <Setter Property="Background" Value="{StaticResource PrimaryBrush}" />
+      <Setter Property="Foreground" Value="White" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="Padding" Value="10,5" />
+      <Setter Property="MinHeight" Value="30" />
+      <Setter Property="Cursor" Value="Hand" />
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="Button">
+            <Border
+              Background="{TemplateBinding Background}"
+              BorderBrush="{TemplateBinding BorderBrush}"
+              BorderThickness="{TemplateBinding BorderThickness}"
+              CornerRadius="6">
+              <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsMouseOver" Value="True">
+                <Setter Property="Background" Value="{StaticResource PrimaryHoverBrush}" />
+              </Trigger>
+              <Trigger Property="IsEnabled" Value="False">
+                <Setter Property="Background" Value="#E6E7EC" />
+                <Setter Property="Foreground" Value="#9CA3AF" />
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+    <Style x:Key="NavButtonStyle" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="Foreground" Value="#111827" />
+      <Setter Property="MinHeight" Value="62" />
+      <Setter Property="Padding" Value="0" />
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="Button">
+            <Border Background="{TemplateBinding Background}">
+              <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsMouseOver" Value="True">
+                <Setter Property="Background" Value="#EEF2F7" />
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+    <Style x:Key="SelectNavButtonStyle" TargetType="Button" BasedOn="{StaticResource NavButtonStyle}">
+      <Style.Triggers>
+        <DataTrigger Binding="{Binding ActivePage}" Value="0">
+          <Setter Property="Background" Value="#E8F8EE" />
+          <Setter Property="Foreground" Value="#138A3D" />
+        </DataTrigger>
+      </Style.Triggers>
+    </Style>
+    <Style x:Key="SettingsNavButtonStyle" TargetType="Button" BasedOn="{StaticResource NavButtonStyle}">
+      <Style.Triggers>
+        <DataTrigger Binding="{Binding ActivePage}" Value="1">
+          <Setter Property="Background" Value="#E8F8EE" />
+          <Setter Property="Foreground" Value="#138A3D" />
+        </DataTrigger>
+      </Style.Triggers>
+    </Style>
+    <Style x:Key="FilterNavButtonStyle" TargetType="Button" BasedOn="{StaticResource NavButtonStyle}">
+      <Style.Triggers>
+        <DataTrigger Binding="{Binding ActivePage}" Value="2">
+          <Setter Property="Background" Value="#E8F8EE" />
+          <Setter Property="Foreground" Value="#138A3D" />
+        </DataTrigger>
+      </Style.Triggers>
+    </Style>
+    <Style TargetType="GroupBox">
+      <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}" />
+      <Setter Property="Background" Value="{StaticResource PanelBrush}" />
+      <Setter Property="Padding" Value="6" />
+    </Style>
+    <Style TargetType="TextBox">
+      <Setter Property="Height" Value="30" />
+      <Setter Property="Background" Value="White" />
+      <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="VerticalContentAlignment" Value="Center" />
+      <Setter Property="Padding" Value="8,0" />
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="TextBox">
+            <Border
+              Background="{TemplateBinding Background}"
+              BorderBrush="{TemplateBinding BorderBrush}"
+              BorderThickness="{TemplateBinding BorderThickness}"
+              CornerRadius="6">
+              <ScrollViewer x:Name="PART_ContentHost" Margin="{TemplateBinding Padding}" VerticalAlignment="Center" />
+            </Border>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+    <Style TargetType="ComboBox">
+      <Setter Property="Height" Value="30" />
+      <Setter Property="Background" Value="White" />
+      <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="VerticalContentAlignment" Value="Center" />
+      <Setter Property="Padding" Value="8,0" />
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="ComboBox">
+            <Grid>
+              <ToggleButton
+                Focusable="False"
+                ClickMode="Press"
+                IsChecked="{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}">
+                <ToggleButton.Template>
+                  <ControlTemplate TargetType="ToggleButton">
+                    <Border
+                      Background="{Binding Background, RelativeSource={RelativeSource AncestorType=ComboBox}}"
+                      BorderBrush="{Binding BorderBrush, RelativeSource={RelativeSource AncestorType=ComboBox}}"
+                      BorderThickness="{Binding BorderThickness, RelativeSource={RelativeSource AncestorType=ComboBox}}"
+                      CornerRadius="6">
+                      <Grid>
+                        <ContentPresenter
+                          Margin="8,0,28,0"
+                          HorizontalAlignment="Left"
+                          VerticalAlignment="Center"
+                          Content="{Binding SelectionBoxItem, RelativeSource={RelativeSource AncestorType=ComboBox}}"
+                          ContentTemplate="{Binding SelectionBoxItemTemplate, RelativeSource={RelativeSource AncestorType=ComboBox}}"
+                          ContentStringFormat="{Binding SelectionBoxItemStringFormat, RelativeSource={RelativeSource AncestorType=ComboBox}}" />
+                        <Path
+                          Width="8"
+                          Height="5"
+                          HorizontalAlignment="Right"
+                          VerticalAlignment="Center"
+                          Margin="0,0,10,0"
+                          Fill="#4B5563"
+                          Data="M 0 0 L 4 5 L 8 0 Z" />
+                      </Grid>
+                    </Border>
+                  </ControlTemplate>
+                </ToggleButton.Template>
+              </ToggleButton>
+              <Popup
+                Placement="Bottom"
+                AllowsTransparency="True"
+                Focusable="False"
+                IsOpen="{TemplateBinding IsDropDownOpen}"
+                PopupAnimation="Slide">
+                <Border
+                  MinWidth="{Binding ActualWidth, RelativeSource={RelativeSource TemplatedParent}}"
+                  MaxHeight="{TemplateBinding MaxDropDownHeight}"
+                  Background="White"
+                  BorderBrush="{StaticResource BorderBrush}"
+                  BorderThickness="1"
+                  CornerRadius="6">
+                  <ScrollViewer Margin="2" CanContentScroll="True">
+                    <ItemsPresenter />
+                  </ScrollViewer>
+                </Border>
+              </Popup>
+            </Grid>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+    <Style TargetType="ComboBoxItem">
+      <Setter Property="Height" Value="30" />
+      <Setter Property="VerticalContentAlignment" Value="Center" />
+      <Setter Property="Padding" Value="8,0" />
+    </Style>
+    <Style TargetType="DataGrid">
+      <Setter Property="GridLinesVisibility" Value="Horizontal" />
+      <Setter Property="HorizontalGridLinesBrush" Value="#EEF2F7" />
+      <Setter Property="HeadersVisibility" Value="Column" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="RowHeaderWidth" Value="0" />
+      <Setter Property="Background" Value="White" />
+      <Setter Property="CanUserAddRows" Value="False" />
+      <Setter Property="AutoGenerateColumns" Value="False" />
+      <Setter Property="RowHeight" Value="30" />
+      <Setter Property="ColumnHeaderHeight" Value="30" />
+    </Style>
+    <Style TargetType="DataGridRow">
+      <Setter Property="Height" Value="30" />
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="VerticalContentAlignment" Value="Center" />
+    </Style>
+    <Style TargetType="DataGridCell">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="VerticalContentAlignment" Value="Center" />
+      <Setter Property="HorizontalContentAlignment" Value="Center" />
+      <Style.Triggers>
+        <Trigger Property="IsSelected" Value="True">
+          <Setter Property="Background" Value="Transparent" />
+          <Setter Property="Foreground" Value="{Binding Foreground, RelativeSource={RelativeSource AncestorType=DataGridRow}}" />
+        </Trigger>
+      </Style.Triggers>
+    </Style>
+    <Style TargetType="DataGridColumnHeader">
+      <Setter Property="Background" Value="#F1F3F6" />
+      <Setter Property="Foreground" Value="#4B5563" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="BorderBrush" Value="#D4D8E1" />
+      <Setter Property="BorderThickness" Value="0,0,0,1" />
+      <Setter Property="HorizontalContentAlignment" Value="Center" />
+    </Style>
+  </Window.Resources>
+
+  <i:Interaction.Triggers>
+    <i:EventTrigger EventName="Loaded">
+      <i:InvokeCommandAction Command="{Binding LoadCommand}" />
+    </i:EventTrigger>
+  </i:Interaction.Triggers>
+
+  <Grid Background="#F5F6FA">
+    <Grid.ColumnDefinitions>
+      <ColumnDefinition Width="60" />
+      <ColumnDefinition Width="*" />
+    </Grid.ColumnDefinitions>
+
+    <Border Background="#FFFFFF" BorderBrush="#D4D8E1" BorderThickness="0,0,1,0">
+      <StackPanel>
+        <Button Style="{StaticResource SelectNavButtonStyle}" Command="{Binding ShowSelectCommand}" Margin="0,0,0,0">
+          <StackPanel>
+            <icon:MaterialIcon Kind="Select" Width="24" Height="24" HorizontalAlignment="Center" />
+            <TextBlock Text="Select" HorizontalAlignment="Center" FontSize="11" />
+          </StackPanel>
+        </Button>
+        <Button Style="{StaticResource SettingsNavButtonStyle}" Command="{Binding ShowSettingsCommand}">
+          <StackPanel>
+            <icon:MaterialIcon Kind="SettingsOutline" Width="24" Height="24" HorizontalAlignment="Center" />
+            <TextBlock Text="Settings" HorizontalAlignment="Center" FontSize="11" />
+          </StackPanel>
+        </Button>
+        <Button Style="{StaticResource FilterNavButtonStyle}" Command="{Binding ShowFilterCommand}">
+          <StackPanel>
+            <icon:MaterialIcon Kind="FilterOutline" Width="24" Height="24" HorizontalAlignment="Center" />
+            <TextBlock Text="Filter" HorizontalAlignment="Center" FontSize="11" />
+          </StackPanel>
+        </Button>
+      </StackPanel>
+    </Border>
+
+    <Grid Grid.Column="1" Margin="8">
+      <views:SelectView DataContext="{Binding Select}">
+        <views:SelectView.Style>
+          <Style TargetType="{x:Type views:SelectView}">
+            <Setter Property="Visibility" Value="Collapsed" />
+            <Style.Triggers>
+              <DataTrigger Binding="{Binding DataContext.ActivePage, RelativeSource={RelativeSource AncestorType=Window}}" Value="0">
+                <Setter Property="Visibility" Value="Visible" />
+              </DataTrigger>
+            </Style.Triggers>
+          </Style>
+        </views:SelectView.Style>
+      </views:SelectView>
+
+      <views:SettingsView DataContext="{Binding SettingsView}">
+        <views:SettingsView.Style>
+          <Style TargetType="{x:Type views:SettingsView}">
+            <Setter Property="Visibility" Value="Collapsed" />
+            <Style.Triggers>
+              <DataTrigger Binding="{Binding DataContext.ActivePage, RelativeSource={RelativeSource AncestorType=Window}}" Value="1">
+                <Setter Property="Visibility" Value="Visible" />
+              </DataTrigger>
+            </Style.Triggers>
+          </Style>
+        </views:SettingsView.Style>
+      </views:SettingsView>
+
+      <views:FilterView DataContext="{Binding Select}">
+        <views:FilterView.Style>
+          <Style TargetType="{x:Type views:FilterView}">
+            <Setter Property="Visibility" Value="Collapsed" />
+            <Style.Triggers>
+              <DataTrigger Binding="{Binding DataContext.ActivePage, RelativeSource={RelativeSource AncestorType=Window}}" Value="2">
+                <Setter Property="Visibility" Value="Visible" />
+              </DataTrigger>
+            </Style.Triggers>
+          </Style>
+        </views:FilterView.Style>
+      </views:FilterView>
+    </Grid>
+
+    <Border
+      Grid.ColumnSpan="2"
+      Panel.ZIndex="30"
+      Background="#01000000"
+      Cursor="Wait"
+      Visibility="{Binding IsBusy, Converter={StaticResource BoolToVisibilityConverter}}" />
+
+    <Border
+      Grid.ColumnSpan="2"
+      Panel.ZIndex="20"
+      Background="#80000000"
+      Visibility="{Binding CustomName.IsOpen, Converter={StaticResource BoolToVisibilityConverter}}">
+      <views:CustomNameView
+        Width="1360"
+        Height="680"
+        HorizontalAlignment="Center"
+        VerticalAlignment="Center"
+        DataContext="{Binding CustomName}" />
+    </Border>
+  </Grid>
+</Window>
