@@ -11,7 +11,9 @@ namespace NMKRevit
   public class NMKRevitApp : IExternalApplication
   {
     private const string TabName = "NMK";
-    private const string PanelName = "Print";
+    private const string PrintPanelName = "Print";
+    private const string FloorPanelName = "Floor";
+    private const string FilledRegionsTabName = "Filled Regions";
     private static string _assemblyFolder = string.Empty;
 #if NETCOREAPP
     private static AssemblyLoadContext? _loadContext;
@@ -37,8 +39,8 @@ namespace NMKRevit
           // The tab may already exist when other NMK tools are loaded.
         }
 
-        RibbonPanel panel = application.CreateRibbonPanel(TabName, PanelName);
         string assemblyPath = Assembly.GetExecutingAssembly().Location;
+        RibbonPanel panel = application.CreateRibbonPanel(TabName, PrintPanelName);
         var buttonData = new PushButtonData(
           "NMKPrint",
           "Print",
@@ -49,6 +51,7 @@ namespace NMKRevit
         };
 
         panel.AddItem(buttonData);
+        RegisterModelingTools(application, assemblyPath);
         return Result.Succeeded;
       }
       catch (Exception ex)
@@ -56,6 +59,43 @@ namespace NMKRevit
         System.Diagnostics.Debug.WriteLine(ex);
         return Result.Failed;
       }
+    }
+
+    private static void RegisterModelingTools(UIControlledApplication application, string assemblyPath)
+    {
+      if (!int.TryParse(application.ControlledApplication.VersionNumber, out int version) || version < 2022)
+      {
+        return;
+      }
+
+      RibbonPanel floorPanel = application.CreateRibbonPanel(TabName, FloorPanelName);
+      floorPanel.AddItem(new PushButtonData(
+        "NMKFloorTool",
+        "Floor\nTool",
+        assemblyPath,
+        "NMKRevit.FloorTool.Commands.FloorToolCommand")
+      {
+        ToolTip = "Analyze, split, and join Floors."
+      });
+
+      try
+      {
+        application.CreateRibbonTab(FilledRegionsTabName);
+      }
+      catch
+      {
+        // The tab may already exist.
+      }
+
+      RibbonPanel filledRegionPanel = application.CreateRibbonPanel(FilledRegionsTabName, "Tools");
+      filledRegionPanel.AddItem(new PushButtonData(
+        "NMKSplitFilledRegionLoops",
+        "Split\nLoops",
+        assemblyPath,
+        "NMKRevit.FilledRegions.Commands.SplitFilledRegionLoopsCommand")
+      {
+        ToolTip = "Split a FilledRegion with multiple islands into separate FilledRegions."
+      });
     }
 
     public Result OnShutdown(UIControlledApplication application)

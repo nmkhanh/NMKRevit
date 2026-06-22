@@ -1,0 +1,111 @@
+<Window
+  x:Class="NMKRevit.FloorTool.Views.FloorToolWindow"
+  xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+  Title="NMK Floor Tool"
+  Width="980"
+  Height="620"
+  MinWidth="820"
+  MinHeight="500">
+  <Window.Resources>
+    <SolidColorBrush x:Key="PrimaryBrush" Color="#2FD25F" />
+    <SolidColorBrush x:Key="PrimaryHoverBrush" Color="#31C85D" />
+    <SolidColorBrush x:Key="BorderBrush" Color="#D4D8E1" />
+    <Style TargetType="Button">
+      <Setter Property="Height" Value="30" />
+      <Setter Property="Padding" Value="14,8" />
+      <Setter Property="Background" Value="{StaticResource PrimaryBrush}" />
+      <Setter Property="Foreground" Value="White" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="Cursor" Value="Hand" />
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="Button">
+            <Border Background="{TemplateBinding Background}" CornerRadius="6">
+              <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsMouseOver" Value="True">
+                <Setter Property="Background" Value="{StaticResource PrimaryHoverBrush}" />
+              </Trigger>
+              <Trigger Property="IsEnabled" Value="False">
+                <Setter Property="Background" Value="#E6E7EC" />
+                <Setter Property="Foreground" Value="#9CA3AF" />
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+    <Style TargetType="DataGrid">
+      <Setter Property="AutoGenerateColumns" Value="False" />
+      <Setter Property="CanUserAddRows" Value="False" />
+      <Setter Property="IsReadOnly" Value="True" />
+      <Setter Property="GridLinesVisibility" Value="Horizontal" />
+      <Setter Property="HorizontalGridLinesBrush" Value="#EEF2F7" />
+      <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}" />
+      <Setter Property="HeadersVisibility" Value="Column" />
+      <Setter Property="RowHeaderWidth" Value="0" />
+      <Setter Property="ClipboardCopyMode" Value="IncludeHeader" />
+    </Style>
+    <Style TargetType="DataGridColumnHeader">
+      <Setter Property="Height" Value="32" />
+      <Setter Property="Background" Value="#F1F3F6" />
+      <Setter Property="Foreground" Value="#4B5563" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="HorizontalContentAlignment" Value="Center" />
+    </Style>
+  </Window.Resources>
+
+  <Grid Background="#F5F6FA" Margin="0">
+    <Grid.RowDefinitions>
+      <RowDefinition Height="Auto" />
+      <RowDefinition Height="Auto" />
+      <RowDefinition Height="*" />
+    </Grid.RowDefinitions>
+
+    <Grid Margin="12,12,12,8">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="*" />
+        <ColumnDefinition Width="12" />
+        <ColumnDefinition Width="*" />
+        <ColumnDefinition Width="12" />
+        <ColumnDefinition Width="*" />
+      </Grid.ColumnDefinitions>
+      <Button Content="Select Multi-Island Floors" Command="{Binding SelectMultiIslandFloorsCommand}" />
+      <Button Grid.Column="2" Content="Split Multi-Island Floors" Command="{Binding SplitMultiIslandFloorsCommand}" />
+      <Button Grid.Column="4" Content="Join Floors" Command="{Binding JoinFloorsCommand}" />
+    </Grid>
+
+    <Border Grid.Row="1" Margin="12,0,12,8" Padding="10,8" Background="White" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="6">
+      <StackPanel Orientation="Horizontal">
+        <TextBlock Text="Join scope" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,18,0" />
+        <RadioButton Content="Selected" IsChecked="{Binding IsSelectedScope}" GroupName="JoinScope" VerticalAlignment="Center" Margin="0,0,18,0" />
+        <RadioButton Content="Active View" IsChecked="{Binding IsActiveViewScope}" GroupName="JoinScope" VerticalAlignment="Center" Margin="0,0,18,0" />
+        <RadioButton Content="All Model" IsChecked="{Binding IsAllModelScope}" GroupName="JoinScope" VerticalAlignment="Center" />
+      </StackPanel>
+    </Border>
+
+    <Border Grid.Row="2" Margin="12,0,12,12" Background="White" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="6">
+      <DockPanel>
+        <TextBlock DockPanel.Dock="Top" Text="Log" FontWeight="SemiBold" Margin="10,8" />
+        <DataGrid ItemsSource="{Binding Logs}" SelectionUnit="CellOrRowHeader">
+          <DataGrid.Columns>
+            <DataGridTextColumn Header="Time" Binding="{Binding Time, StringFormat=HH:mm:ss}" Width="80" />
+            <DataGridTextColumn Header="Level" Binding="{Binding Level}" Width="80" />
+            <DataGridTextColumn Header="Tool" Binding="{Binding Tool}" Width="145" />
+            <DataGridTextColumn Header="Element Id" Binding="{Binding ElementId}" Width="145" />
+            <DataGridTextColumn Header="Message" Binding="{Binding Message}" Width="*" />
+          </DataGrid.Columns>
+          <DataGrid.RowStyle>
+            <Style TargetType="DataGridRow">
+              <Setter Property="Foreground" Value="{Binding Foreground}" />
+              <Setter Property="MinHeight" Value="30" />
+            </Style>
+          </DataGrid.RowStyle>
+        </DataGrid>
+      </DockPanel>
+    </Border>
+  </Grid>
+</Window>

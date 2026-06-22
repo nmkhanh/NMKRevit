@@ -1,0 +1,151 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "RebarFoundation.schema.json",
+  "title": "NMK RebarFoundation configuration",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "units", "coordinateSystem", "sideCenterCoverMm", "layers", "hookBars"],
+  "properties": {
+    "$schema": { "type": "string" },
+    "schemaVersion": { "const": 1 },
+    "units": { "const": "mm" },
+    "coordinateSystem": {
+      "const": "selectedSolidLocalXYZ",
+      "description": "X is the selected solid's longest horizontal edge, Y is horizontal and perpendicular to X, and Z is global up."
+    },
+    "sideCenterCoverMm": { "type": "number", "minimum": 0 },
+    "layers": {
+      "type": "array",
+      "minItems": 4,
+      "items": { "$ref": "#/$defs/layer" }
+    },
+    "hookBars": { "$ref": "#/$defs/hookBars" }
+  },
+  "$defs": {
+    "layer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "diameterMm", "typeName", "direction", "position", "distribution", "shape"],
+      "properties": {
+        "id": { "enum": ["L1", "L2", "L3", "L4"] },
+        "diameterMm": { "type": "number", "exclusiveMinimum": 0 },
+        "typeName": { "type": "string", "minLength": 1 },
+        "direction": { "enum": ["X", "Y"] },
+        "position": { "$ref": "#/$defs/position" },
+        "sideCenterCoverMm": { "type": ["number", "null"], "minimum": 0 },
+        "distribution": { "$ref": "#/$defs/distribution" },
+        "shape": { "$ref": "#/$defs/shape" }
+      }
+    },
+    "position": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["reference", "offsetMm", "clearanceMm"],
+      "properties": {
+        "reference": { "enum": ["topFace", "bottomFace", "aboveLayer", "belowLayer"] },
+        "layerId": { "type": ["string", "null"] },
+        "offsetMm": { "type": "number", "minimum": 0 },
+        "clearanceMm": { "type": "number", "minimum": 0 }
+      }
+    },
+    "shape": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind"],
+      "properties": {
+        "kind": { "enum": ["auto", "straightNativeHooks", "uToLayer", "hairpinWrapLayer", "polycurve"] },
+        "hookTypeName": { "type": ["string", "null"] },
+        "hookAngleDegrees": { "type": "number", "minimum": 0, "maximum": 180 },
+        "segments": {
+          "type": ["array", "null"],
+          "items": { "$ref": "#/$defs/segment" }
+        }
+      }
+    },
+    "segment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "start", "end"],
+      "properties": {
+        "type": { "const": "line" },
+        "start": { "$ref": "#/$defs/point" },
+        "end": { "$ref": "#/$defs/point" }
+      }
+    },
+    "point": {
+      "type": "object",
+      "$comment": "For layer polycurves, uMm is measured from the minimum face along the bar direction and zMm from the solid bottom. For hairpins, uMm and zMm are offsets from the wrapped L2 bar centre.",
+      "additionalProperties": false,
+      "required": ["uMm", "zMm"],
+      "properties": {
+        "uMm": { "type": "number" },
+        "zMm": { "type": "number" }
+      }
+    },
+    "distribution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["layout", "edgeStartMm", "edgeEndMm", "maximumSpacingMm", "includeEnd"],
+      "properties": {
+        "layout": { "enum": ["fixedSpacingWithRemainderAtEnd", "maximumSpacingEven", "autoFromL2Staggered"] },
+        "edgeStartMm": { "type": "number", "minimum": 0 },
+        "edgeEndMm": { "type": "number", "minimum": 0 },
+        "maximumSpacingMm": { "type": "number", "exclusiveMinimum": 0 },
+        "offsetsMm": { "type": ["array", "null"], "items": { "type": "number", "minimum": 0 } },
+        "spacingsMm": { "type": ["array", "null"], "items": { "type": "number", "exclusiveMinimum": 0 } },
+        "includeEnd": { "type": "boolean" },
+        "zones": { "type": ["array", "null"], "items": { "$ref": "#/$defs/zone" } }
+      }
+    },
+    "zone": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["startOffsetMm", "endOffsetMm", "layout", "maximumSpacingMm", "includeEnd"],
+      "properties": {
+        "startOffsetMm": { "type": "number", "minimum": 0 },
+        "endOffsetMm": { "type": "number", "minimum": 0 },
+        "layout": { "enum": ["fixedSpacingWithRemainderAtEnd", "maximumSpacingEven"] },
+        "maximumSpacingMm": { "type": "number", "exclusiveMinimum": 0 },
+        "offsetsMm": { "type": ["array", "null"], "items": { "type": "number", "minimum": 0 } },
+        "spacingsMm": { "type": ["array", "null"], "items": { "type": "number", "exclusiveMinimum": 0 } },
+        "includeEnd": { "type": "boolean" }
+      }
+    },
+    "hookBars": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["enabled", "diameterMm", "typeName", "wrapLayerId", "longLegEnd", "wrapClearanceMm", "longitudinalDistribution", "shape"],
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "diameterMm": { "type": "number", "exclusiveMinimum": 0 },
+        "typeName": { "type": "string", "minLength": 1 },
+        "wrapLayerId": { "const": "L2" },
+        "longLegEnd": { "$ref": "#/$defs/longLegEnd" },
+        "hookTypeName": { "type": ["string", "null"] },
+        "wrapClearanceMm": { "type": "number", "minimum": 0 },
+        "shortLegLengthMm": { "type": ["number", "null"], "exclusiveMinimum": 0 },
+        "defaultSpacingMultiplier": { "type": "number", "exclusiveMinimum": 0 },
+        "defaultSkipL2BarsAtEdges": { "type": "integer", "minimum": 0 },
+        "defaultStaggerRows": { "type": "boolean" },
+        "defaultLongitudinalShiftMm": { "type": "number" },
+        "rowDistribution": { "oneOf": [{ "$ref": "#/$defs/distribution" }, { "type": "null" }] },
+        "longitudinalDistribution": { "$ref": "#/$defs/distribution" },
+        "shape": { "$ref": "#/$defs/shape" }
+      }
+    },
+    "longLegEnd": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["reference", "layerId", "offsetMm"],
+      "properties": {
+        "reference": { "const": "bottomOfLayer" },
+        "layerId": { "const": "L3" },
+        "offsetMm": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Distance below the bottom tangent of L3. Use 0 for just touching L3."
+        }
+      }
+    }
+  }
+}

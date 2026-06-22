@@ -52,7 +52,8 @@
 			<PropertyGroup>
 				<DefineConstants>R27</DefineConstants>
 				<RevitVersion>2027</RevitVersion>
-				<TargetFramework>net10.0-windows</TargetFramework>
+				<RevitReferenceVersion>2026</RevitReferenceVersion>
+				<TargetFramework>net8.0-windows</TargetFramework>
 			</PropertyGroup>
 		</When>
 		<When Condition="$(Configuration.Contains('21'))">
@@ -70,6 +71,9 @@
 			</PropertyGroup>
 		</When>
 	</Choose>
+	<PropertyGroup>
+		<RevitReferenceVersion Condition="'$(RevitReferenceVersion)' == ''">$(RevitVersion)</RevitReferenceVersion>
+	</PropertyGroup>
 	<PropertyGroup Condition="$(Configuration.Contains('D'))">
 		<PlatformTarget>AnyCPU</PlatformTarget>
 		<DebugSymbols>true</DebugSymbols>
@@ -94,9 +98,9 @@
 		<PackageReference Include="Material.Icons.WPF" Version="2.4.1" />
 		<PackageReference Include="Microsoft.Xaml.Behaviors.Wpf" Version="1.1.135" />
 		<PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
-		<PackageReference Include="Nice3point.Revit.Api.RevitAPI" Version="$(RevitVersion).*" />
-		<PackageReference Include="Nice3point.Revit.Api.RevitAPIUI" Version="$(RevitVersion).*" />
-		<PackageReference Include="Nice3point.Revit.Api.AdWindows" Version="$(RevitVersion).*" />
+		<PackageReference Include="Nice3point.Revit.Api.RevitAPI" Version="$(RevitReferenceVersion).*" />
+		<PackageReference Include="Nice3point.Revit.Api.RevitAPIUI" Version="$(RevitReferenceVersion).*" />
+		<PackageReference Include="Nice3point.Revit.Api.AdWindows" Version="$(RevitReferenceVersion).*" />
 		<PackageReference Include="Revit.Async" Version="2.1.1" />
 		<PackageReference Include="System.Management" Version="10.0.1" />
 	</ItemGroup>
@@ -104,6 +108,19 @@
 	  <None Update="NMKPrint\Resources\DefaultNamingTemplate.json">
 	    <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 	  </None>
+	  <None Update="Rebar\RebarFoundation.json">
+	    <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+	    <TargetPath>RebarFoundation.json</TargetPath>
+	  </None>
+	  <None Update="Rebar\RebarFoundation.schema.json">
+	    <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+	    <TargetPath>RebarFoundation.schema.json</TargetPath>
+	  </None>
+	</ItemGroup>
+	<ItemGroup Condition="'$(RevitVersion)' == '2020' Or '$(RevitVersion)' == '2021'">
+	  <Compile Remove="FloorTool\**\*.cs" />
+	  <Compile Remove="FilledRegions\**\*.cs" />
+	  <Page Remove="FloorTool\**\*.xaml" />
 	</ItemGroup>
 	<PropertyGroup>
 		<StartAction>Program</StartAction>

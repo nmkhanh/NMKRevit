@@ -1,0 +1,128 @@
+{
+  "$schema": "RebarFoundation.schema.json",
+  "schemaVersion": 1,
+  "units": "mm",
+  "coordinateSystem": "selectedSolidLocalXYZ",
+  "sideCenterCoverMm": 150,
+  "layers": [
+    {
+      "id": "L1",
+      "diameterMm": 19,
+      "typeName": "FL1_D19",
+      "direction": "X",
+      "position": {
+        "reference": "aboveLayer",
+        "layerId": "L2",
+        "offsetMm": 0,
+        "clearanceMm": 0
+      },
+      "distribution": {
+        "layout": "fixedSpacingWithRemainderAtEnd",
+        "edgeStartMm": 150,
+        "edgeEndMm": 150,
+        "maximumSpacingMm": 250,
+        "includeEnd": true
+      },
+      "shape": {
+        "kind": "auto",
+        "hookTypeName": null,
+        "hookAngleDegrees": 90
+      }
+    },
+    {
+      "id": "L2",
+      "diameterMm": 22,
+      "typeName": "FL2_D22",
+      "direction": "Y",
+      "position": {
+        "reference": "topFace",
+        "offsetMm": 150,
+        "clearanceMm": 0
+      },
+      "distribution": {
+        "layout": "fixedSpacingWithRemainderAtEnd",
+        "edgeStartMm": 150,
+        "edgeEndMm": 150,
+        "maximumSpacingMm": 250,
+        "includeEnd": true
+      },
+      "shape": {
+        "kind": "auto",
+        "hookTypeName": null,
+        "hookAngleDegrees": 90
+      }
+    },
+    {
+      "id": "L3",
+      "diameterMm": 35,
+      "typeName": "FL3_D35",
+      "direction": "Y",
+      "position": {
+        "reference": "bottomFace",
+        "offsetMm": 225,
+        "clearanceMm": 0
+      },
+      "distribution": {
+        "layout": "fixedSpacingWithRemainderAtEnd",
+        "edgeStartMm": 150,
+        "edgeEndMm": 150,
+        "maximumSpacingMm": 250,
+        "includeEnd": true
+      },
+      "shape": {
+        "kind": "auto"
+      }
+    },
+    {
+      "id": "L4",
+      "diameterMm": 38,
+      "typeName": "FL4_D38",
+      "direction": "X",
+      "position": {
+        "reference": "belowLayer",
+        "layerId": "L3",
+        "offsetMm": 0,
+        "clearanceMm": 0
+      },
+      "distribution": {
+        "layout": "fixedSpacingWithRemainderAtEnd",
+        "edgeStartMm": 150,
+        "edgeEndMm": 150,
+        "maximumSpacingMm": 250,
+        "includeEnd": true
+      },
+      "shape": {
+        "kind": "auto"
+      }
+    }
+  ],
+  "hookBars": {
+    "enabled": true,
+    "diameterMm": 16,
+    "typeName": "FHook_D16",
+    "wrapLayerId": "L2",
+    "longLegEnd": {
+      "reference": "bottomOfLayer",
+      "layerId": "L3",
+      "offsetMm": 0
+    },
+    "hookTypeName": null,
+    "wrapClearanceMm": 0,
+    "shortLegLengthMm": null,
+    "defaultSpacingMultiplier": 4,
+    "defaultSkipL2BarsAtEdges": 2,
+    "defaultStaggerRows": true,
+    "defaultLongitudinalShiftMm": 100,
+    "rowDistribution": null,
+    "longitudinalDistribution": {
+      "layout": "autoFromL2Staggered",
+      "edgeStartMm": 500,
+      "edgeEndMm": 500,
+      "maximumSpacingMm": 1000,
+      "includeEnd": true
+    },
+    "shape": {
+      "kind": "hairpinWrapLayer"
+    }
+  }
+}
