@@ -16,7 +16,7 @@
     "sideCenterCoverMm": { "type": "number", "minimum": 0 },
     "layers": {
       "type": "array",
-      "minItems": 4,
+      "minItems": 1,
       "items": { "$ref": "#/$defs/layer" }
     },
     "hookBars": { "$ref": "#/$defs/hookBars" }
@@ -27,7 +27,7 @@
       "additionalProperties": false,
       "required": ["id", "diameterMm", "typeName", "direction", "position", "distribution", "shape"],
       "properties": {
-        "id": { "enum": ["L1", "L2", "L3", "L4"] },
+        "id": { "type": "string", "minLength": 1 },
         "diameterMm": { "type": "number", "exclusiveMinimum": 0 },
         "typeName": { "type": "string", "minLength": 1 },
         "direction": { "enum": ["X", "Y"] },
@@ -53,9 +53,11 @@
       "additionalProperties": false,
       "required": ["kind"],
       "properties": {
-        "kind": { "enum": ["auto", "straightNativeHooks", "uToLayer", "hairpinWrapLayer", "polycurve"] },
+        "kind": { "enum": ["auto", "straight", "straightNativeHooks", "uToLayer", "hairpinWrapLayer", "polycurve"] },
         "hookTypeName": { "type": ["string", "null"] },
         "hookAngleDegrees": { "type": "number", "minimum": 0, "maximum": 180 },
+        "legLengthMm": { "type": ["number", "null"], "exclusiveMinimum": 0 },
+        "targetLayerId": { "type": ["string", "null"], "minLength": 1 },
         "segments": {
           "type": ["array", "null"],
           "items": { "$ref": "#/$defs/segment" }
@@ -92,9 +94,19 @@
         "edgeEndMm": { "type": "number", "minimum": 0 },
         "maximumSpacingMm": { "type": "number", "exclusiveMinimum": 0 },
         "offsetsMm": { "type": ["array", "null"], "items": { "type": "number", "minimum": 0 } },
+        "spacingPattern": { "type": ["array", "null"], "items": { "$ref": "#/$defs/spacingPatternItem" } },
         "spacingsMm": { "type": ["array", "null"], "items": { "type": "number", "exclusiveMinimum": 0 } },
         "includeEnd": { "type": "boolean" },
         "zones": { "type": ["array", "null"], "items": { "$ref": "#/$defs/zone" } }
+      }
+    },
+    "spacingPatternItem": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["count", "spacingMm"],
+      "properties": {
+        "count": { "type": "integer", "minimum": 1 },
+        "spacingMm": { "type": "number", "exclusiveMinimum": 0 }
       }
     },
     "zone": {
@@ -107,6 +119,7 @@
         "layout": { "enum": ["fixedSpacingWithRemainderAtEnd", "maximumSpacingEven"] },
         "maximumSpacingMm": { "type": "number", "exclusiveMinimum": 0 },
         "offsetsMm": { "type": ["array", "null"], "items": { "type": "number", "minimum": 0 } },
+        "spacingPattern": { "type": ["array", "null"], "items": { "$ref": "#/$defs/spacingPatternItem" } },
         "spacingsMm": { "type": ["array", "null"], "items": { "type": "number", "exclusiveMinimum": 0 } },
         "includeEnd": { "type": "boolean" }
       }
@@ -119,7 +132,7 @@
         "enabled": { "type": "boolean" },
         "diameterMm": { "type": "number", "exclusiveMinimum": 0 },
         "typeName": { "type": "string", "minLength": 1 },
-        "wrapLayerId": { "const": "L2" },
+        "wrapLayerId": { "type": "string", "minLength": 1 },
         "longLegEnd": { "$ref": "#/$defs/longLegEnd" },
         "hookTypeName": { "type": ["string", "null"] },
         "wrapClearanceMm": { "type": "number", "minimum": 0 },
@@ -139,7 +152,7 @@
       "required": ["reference", "layerId", "offsetMm"],
       "properties": {
         "reference": { "const": "bottomOfLayer" },
-        "layerId": { "const": "L3" },
+        "layerId": { "type": "string", "minLength": 1 },
         "offsetMm": {
           "type": "number",
           "minimum": 0,

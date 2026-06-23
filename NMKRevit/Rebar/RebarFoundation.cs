@@ -46,7 +46,7 @@ namespace NMKRevit.Rebar
         if (RebarHostData.GetRebarHostData(host) == null)
           throw new InvalidOperationException("The selected FamilyInstance cannot host rebar. Use a reinforcement-compatible structural category and enable reinforcement.");
 
-        Dictionary<string, LayerConfig> layers = GetRequiredLayers(config);
+        Dictionary<string, LayerConfig> layers = GetLayers(config);
         int layerBars = 0;
         int hairpinBars = 0;
         var layouts = new Dictionary<string, LayerLayout>(StringComparer.OrdinalIgnoreCase);
@@ -57,19 +57,18 @@ namespace NMKRevit.Rebar
         {
           transaction.Start();
           var layerTypes = new Dictionary<string, RebarBarType>(StringComparer.OrdinalIgnoreCase);
-          foreach (string id in new[] { "L1", "L2", "L3", "L4" })
+          foreach (LayerConfig layer in config.Layers)
           {
-            LayerConfig layer = layers[id];
-            layerTypes[id] = ResolveBarType(document, layer.DiameterMm, layer.TypeName, layer.Id);
+            layerTypes[layer.Id] = ResolveBarType(document, layer.DiameterMm, layer.TypeName, layer.Id);
           }
 
           Dictionary<string, double> elevations = ResolveLayerElevations(box, layers, layerTypes);
-          ValidateLayerOrderAndBounds(box, layerTypes, elevations);
-          foreach (string id in new[] { "L1", "L2", "L3", "L4" })
+          ValidateLayerBounds(box, layerTypes, elevations);
+          foreach (LayerConfig layer in config.Layers)
           {
-            LayerConfig layer = layers[id];
+            string id = layer.Id;
             RebarBarType barType = layerTypes[id];
-            LayerLayout layout = CreateLayer(document, host, box, layer, barType, elevations[id], config.SideCenterCoverMm, elevations["L2"]);
+            LayerLayout layout = CreateLayer(document, host, box, layer, barType, elevations[id], config.SideCenterCoverMm, elevations);
             layouts[id] = layout;
             layerBars += layout.Created;
             layerCounts[id] = layout.Created;
@@ -80,17 +79,28 @@ namespace NMKRevit.Rebar
           {
             HookBarConfig hook = config.HookBars;
             RebarBarType hookType = ResolveBarType(document, hook.DiameterMm, hook.TypeName, "Hook");
-            hairpinBars = CreateHairpins(document, host, box, hook, hookType, layouts["L2"], layouts["L3"]);
+            LongLegEndConfig longLegEnd = hook.LongLegEnd ?? throw new InvalidOperationException("hookBars.longLegEnd is required.");
+            string wrapLayerId = ResolveLayerIdAlias(hook.WrapLayerId, config.Layers, true);
+            string endLayerId = ResolveLayerIdAlias(longLegEnd.LayerId, config.Layers, false);
+            if (!layouts.TryGetValue(wrapLayerId, out LayerLayout? wrapLayout))
+              throw new InvalidOperationException($"hookBars.wrapLayerId '{hook.WrapLayerId}' does not match any layer id.");
+            if (!layouts.TryGetValue(endLayerId, out LayerLayout? endLayout))
+              throw new InvalidOperationException($"hookBars.longLegEnd.layerId '{longLegEnd.LayerId}' does not match any layer id.");
+            hairpinBars = CreateHairpins(document, host, box, hook, hookType, wrapLayout, endLayout);
             usedTypes.Add(hookType.Name);
           }
           transaction.Commit();
         }
 
+        string counts = string.Join(", ", config.Layers.Select(layer =>
+        {
+          layerCounts.TryGetValue(layer.Id, out int created);
+          return $"{layer.Id}: {created}";
+        }));
         RevitTaskDialog.Show(
           "RebarFoundation",
           $"JSON: {Path.GetFileName(jsonPath)}\n" +
-          $"Layer bars: {layerBars} " +
-          $"(L1: {layerCounts["L1"]}, L2: {layerCounts["L2"]}, L3: {layerCounts["L3"]}, L4: {layerCounts["L4"]})\n" +
+          $"Layer bars: {layerBars} ({counts})\n" +
           $"Hairpin bars: {hairpinBars}\n" +
           $"Types: {string.Join(", ", usedTypes.Distinct())}");
         return Result.Succeeded;
@@ -154,14 +164,25 @@ namespace NMKRevit.Rebar
       return config;
     }
 
-    private static Dictionary<string, LayerConfig> GetRequiredLayers(FoundationRebarConfig config)
+    private static Dictionary<string, LayerConfig> GetLayers(FoundationRebarConfig config)
     {
       var duplicate = config.Layers.GroupBy(layer => layer.Id, StringComparer.OrdinalIgnoreCase).FirstOrDefault(group => group.Count() > 1);
       if (duplicate != null) throw new InvalidOperationException($"Duplicate layer id: {duplicate.Key}.");
       Dictionary<string, LayerConfig> result = config.Layers.ToDictionary(layer => layer.Id, StringComparer.OrdinalIgnoreCase);
-      foreach (string id in new[] { "L1", "L2", "L3", "L4" })
-        if (!result.ContainsKey(id)) throw new InvalidOperationException($"Required layer {id} is missing.");
+      if (result.Count == 0) throw new InvalidOperationException("JSON must contain at least one layer.");
       return result;
+    }
+
+    private static string ResolveLayerIdAlias(string? id, IReadOnlyList<LayerConfig> layers, bool first)
+    {
+      if (layers.Count == 0) throw new InvalidOperationException("JSON must contain at least one layer.");
+      string token = id?.Trim() ?? string.Empty;
+      if (string.IsNullOrWhiteSpace(token) ||
+          token.Equals(first ? "firstLayer" : "lastLayer", StringComparison.OrdinalIgnoreCase) ||
+          token.Equals(first ? "first" : "last", StringComparison.OrdinalIgnoreCase) ||
+          token.Equals(first ? "$first" : "$last", StringComparison.OrdinalIgnoreCase))
+        return first ? layers[0].Id : layers[^1].Id;
+      return token;
     }
 
     private static Dictionary<string, double> ResolveLayerElevations(
@@ -170,7 +191,7 @@ namespace NMKRevit.Rebar
       Dictionary<string, RebarBarType> layerTypes)
     {
       var result = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
-      foreach (string id in new[] { "L2", "L1", "L3", "L4" })
+      foreach (string id in layers.Keys)
         ResolveElevation(id, box, layers, layerTypes, result, new HashSet<string>(StringComparer.OrdinalIgnoreCase));
       return result;
     }
@@ -212,14 +233,12 @@ namespace NMKRevit.Rebar
       return z;
     }
 
-    private static void ValidateLayerOrderAndBounds(
+    private static void ValidateLayerBounds(
       RectangularSolid box,
       Dictionary<string, RebarBarType> layerTypes,
       Dictionary<string, double> z)
     {
-      if (!(z["L1"] > z["L2"] && z["L2"] > z["L3"] && z["L3"] > z["L4"]))
-        throw new InvalidOperationException("Layer order must be L1 > L2 > L3 > L4 from top to bottom.");
-      foreach (string id in new[] { "L1", "L2", "L3", "L4" })
+      foreach (string id in z.Keys)
       {
         double radius = layerTypes[id].BarModelDiameter * 0.5;
         if (z[id] - radius <= box.MinZ || z[id] + radius >= box.MaxZ)
@@ -235,7 +254,7 @@ namespace NMKRevit.Rebar
       RebarBarType barType,
       double z,
       double defaultSideCoverMm,
-      double l2Z)
+      IReadOnlyDictionary<string, double> elevations)
     {
       bool alongX = layer.Direction.Equals("X", StringComparison.OrdinalIgnoreCase);
       double sideCover = Mm(layer.SideCenterCoverMm ?? defaultSideCoverMm);
@@ -248,7 +267,7 @@ namespace NMKRevit.Rebar
 
       string shapeKind = NormalizeLayerShapeKind(layer);
       RebarHookType? hook90 = null;
-      if (shapeKind.Equals("straightNativeHooks", StringComparison.OrdinalIgnoreCase))
+      if (shapeKind.Equals("straightNativeHooks", StringComparison.OrdinalIgnoreCase) && !layer.Shape.LegLengthMm.HasValue)
         hook90 = ResolveHookType(document, barType, layer.Shape.HookTypeName, layer.Shape.HookAngleDegrees <= 0 ? 90 : layer.Shape.HookAngleDegrees);
 
       int count = 0;
@@ -259,9 +278,14 @@ namespace NMKRevit.Rebar
         if (shapeKind.Equals("polycurve", StringComparison.OrdinalIgnoreCase))
           curves = BuildLayerPolycurve(box, alongX, position, layer.Shape);
         else if (shapeKind.Equals("uToLayer", StringComparison.OrdinalIgnoreCase))
-          curves = BuildUToLayerCurves(box, alongX, position, lineStart, lineEnd, z, l2Z);
+        {
+          string targetLayerId = string.IsNullOrWhiteSpace(layer.Shape.TargetLayerId) ? "L2" : layer.Shape.TargetLayerId.Trim();
+          if (!elevations.TryGetValue(targetLayerId, out double targetZ))
+            throw new InvalidOperationException($"Layer {layer.Id}: shape.targetLayerId '{targetLayerId}' does not match any layer id.");
+          curves = BuildUToLayerCurves(box, alongX, position, lineStart, lineEnd, z, targetZ);
+        }
         else if (shapeKind.Equals("straightNativeHooks", StringComparison.OrdinalIgnoreCase))
-          curves = BuildDownHookedCurves(box, alongX, position, lineStart, lineEnd, z, barType, hook90!);
+          curves = BuildDownHookedCurves(box, alongX, position, lineStart, lineEnd, z, barType, layer.Shape, hook90);
         else
         {
           curves = new List<Curve>
@@ -297,7 +321,7 @@ namespace NMKRevit.Rebar
       double bottomZ,
       double topZ)
     {
-      if (topZ <= bottomZ) throw new InvalidOperationException("U-to-L2 bar top must be above its layer elevation.");
+      if (topZ <= bottomZ) throw new InvalidOperationException("U-to-layer bar top must be above its layer elevation.");
       XYZ leftTop = PointOnLayer(box, alongX, position, u0, topZ);
       XYZ leftBottom = PointOnLayer(box, alongX, position, u0, bottomZ);
       XYZ rightBottom = PointOnLayer(box, alongX, position, u1, bottomZ);
@@ -319,10 +343,16 @@ namespace NMKRevit.Rebar
       double u1,
       double mainZ,
       RebarBarType barType,
-      RebarHookType hook90)
+      ShapeConfig shape,
+      RebarHookType? hook90)
     {
-      double tangentLength = barType.GetHookTangentLength(hook90.Id);
-      if (tangentLength <= Tolerance) tangentLength = hook90.GetHookExtensionLength(barType);
+      double tangentLength = shape.LegLengthMm.HasValue ? Mm(shape.LegLengthMm.Value) : 0;
+      if (tangentLength <= Tolerance)
+      {
+        if (hook90 == null) throw new InvalidOperationException("The 90-degree hook type does not provide a valid automatic length.");
+        tangentLength = barType.GetHookTangentLength(hook90.Id);
+        if (tangentLength <= Tolerance) tangentLength = hook90.GetHookExtensionLength(barType);
+      }
       if (tangentLength <= 0) throw new InvalidOperationException("The 90-degree hook type does not provide a valid automatic length.");
 
       XYZ leftBottom = PointOnLayer(box, alongX, position, u0, mainZ - tangentLength);
@@ -348,13 +378,12 @@ namespace NMKRevit.Rebar
       LayerLayout l3)
     {
       LongLegEndConfig longLegEnd = hook.LongLegEnd ?? throw new InvalidOperationException("hookBars.longLegEnd is required.");
-      if (!hook.WrapLayerId.Equals("L2", StringComparison.OrdinalIgnoreCase) ||
-          !longLegEnd.Reference.Equals("bottomOfLayer", StringComparison.OrdinalIgnoreCase) ||
-          !longLegEnd.LayerId.Equals("L3", StringComparison.OrdinalIgnoreCase))
-        throw new InvalidOperationException("Schema version 1 hairpins must wrap L2 and terminate at bottomOfLayer L3.");
+      if (!longLegEnd.Reference.Equals("bottomOfLayer", StringComparison.OrdinalIgnoreCase))
+        throw new InvalidOperationException("hookBars.longLegEnd.reference must be bottomOfLayer.");
       if (longLegEnd.OffsetMm < 0) throw new InvalidOperationException("hookBars.longLegEnd.offsetMm cannot be negative.");
-      RebarHookType hook180 = ResolveHookType(document, hairpinType, hook.HookTypeName, 180);
-      double shortLeg = hook.ShortLegLengthMm.HasValue ? Mm(hook.ShortLegLengthMm.Value) : hook180.GetHookExtensionLength(hairpinType);
+      double shortLeg = hook.ShortLegLengthMm.HasValue
+        ? Mm(hook.ShortLegLengthMm.Value)
+        : ResolveHookType(document, hairpinType, hook.HookTypeName, 180).GetHookExtensionLength(hairpinType);
       double minimumHalfWidth = hairpinType.StandardBendDiameter * 0.5 + hairpinType.BarModelDiameter * 0.5;
       double wrapHalfWidth = Math.Max(
         minimumHalfWidth,
@@ -367,6 +396,7 @@ namespace NMKRevit.Rebar
       int count = 0;
 
       bool hasExplicitDistribution = hook.LongitudinalDistribution.OffsetsMm?.Count > 0
+        || hook.LongitudinalDistribution.SpacingPattern?.Count > 0
         || hook.LongitudinalDistribution.SpacingsMm?.Count > 0
         || hook.LongitudinalDistribution.Zones?.Count > 0;
       bool autoLongitudinal = !hasExplicitDistribution
@@ -375,6 +405,7 @@ namespace NMKRevit.Rebar
       bool explicitRows = rowDistribution != null
         && (!rowDistribution.Layout.Equals("autoFromL2Staggered", StringComparison.OrdinalIgnoreCase)
           || rowDistribution.OffsetsMm?.Count > 0
+          || rowDistribution.SpacingPattern?.Count > 0
           || rowDistribution.SpacingsMm?.Count > 0
           || rowDistribution.Zones?.Count > 0);
       IList<double> rowPositions = explicitRows
@@ -405,7 +436,7 @@ namespace NMKRevit.Rebar
     {
       if (skip < 0) throw new InvalidOperationException("hookBars.defaultSkipL2BarsAtEdges cannot be negative.");
       if (positions.Count <= skip * 2)
-        throw new InvalidOperationException("Not enough L2 bars remain after skipping the requested bars at both edges.");
+        throw new InvalidOperationException("Not enough wrapped-layer bars remain after skipping the requested bars at both edges.");
       if (multiplier <= 0) throw new InvalidOperationException("hookBars.defaultSpacingMultiplier must be positive.");
       int barStep = Math.Max(1, (int)Math.Round(multiplier));
       var rows = new List<double>();
@@ -415,9 +446,9 @@ namespace NMKRevit.Rebar
 
     private static double ResolveTypicalSpacing(IList<double> positions)
     {
-      if (positions.Count < 2) throw new InvalidOperationException("At least two L2 bars are required to derive the hairpin spacing.");
+      if (positions.Count < 2) throw new InvalidOperationException("At least two wrapped-layer bars are required to derive the hairpin spacing.");
       List<double> gaps = positions.Zip(positions.Skip(1), (left, right) => right - left).Where(gap => gap > Tolerance).OrderBy(gap => gap).ToList();
-      if (gaps.Count == 0) throw new InvalidOperationException("Could not derive a valid spacing from L2.");
+      if (gaps.Count == 0) throw new InvalidOperationException("Could not derive a valid spacing from the wrapped layer.");
       return gaps[gaps.Count / 2];
     }
 
@@ -552,14 +583,14 @@ namespace NMKRevit.Rebar
           double zoneEnd = min + Mm(zone.EndOffsetMm);
           if (zoneStart < min - Tolerance || zoneEnd > max + Tolerance || zoneEnd < zoneStart)
             throw new InvalidOperationException("Distribution zone lies outside its available dimension.");
-          all.AddRange(BuildRange(zoneStart, zoneEnd, zone.Layout, zone.MaximumSpacingMm, zone.OffsetsMm, zone.SpacingsMm, zone.IncludeEnd));
+          all.AddRange(BuildRange(zoneStart, zoneEnd, zone.Layout, zone.MaximumSpacingMm, zone.OffsetsMm, zone.SpacingPattern, zone.SpacingsMm, zone.IncludeEnd));
         }
         return all.Distinct(new DoubleToleranceComparer()).OrderBy(value => value).ToList();
       }
       double start = min + Mm(distribution.EdgeStartMm);
       double end = max - Mm(distribution.EdgeEndMm);
       if (end < start) throw new InvalidOperationException("Distribution edge offsets exceed the available dimension.");
-      return BuildRange(start, end, distribution.Layout, distribution.MaximumSpacingMm, distribution.OffsetsMm, distribution.SpacingsMm, distribution.IncludeEnd, min);
+      return BuildRange(start, end, distribution.Layout, distribution.MaximumSpacingMm, distribution.OffsetsMm, distribution.SpacingPattern, distribution.SpacingsMm, distribution.IncludeEnd, min);
     }
 
     private static IList<double> BuildRange(
@@ -568,6 +599,7 @@ namespace NMKRevit.Rebar
       string layout,
       double spacingMm,
       List<double>? offsetsMm,
+      List<SpacingPatternItemConfig>? spacingPattern,
       List<double>? spacingsMm,
       bool includeEnd,
       double? offsetOrigin = null)
@@ -578,6 +610,22 @@ namespace NMKRevit.Rebar
         List<double> positions = offsetsMm.Select(value => origin + Mm(value)).ToList();
         if (positions.Any(value => value < start - Tolerance || value > end + Tolerance))
           throw new InvalidOperationException("An offsetsMm value violates the distribution limits.");
+        return positions;
+      }
+      if (spacingPattern?.Count > 0)
+      {
+        var positions = new List<double> { start };
+        double current = start;
+        foreach (SpacingPatternItemConfig item in spacingPattern)
+        {
+          for (int index = 0; index < item.Count; index++)
+          {
+            current += Mm(item.SpacingMm);
+            if (current > end + Tolerance) throw new InvalidOperationException("The sum of spacingPattern exceeds the distribution end.");
+            positions.Add(current);
+          }
+        }
+        if (includeEnd && end - positions[^1] > Tolerance) positions.Add(end);
         return positions;
       }
       if (spacingsMm?.Count > 0)
@@ -642,15 +690,21 @@ namespace NMKRevit.Rebar
     {
       if (distribution == null) throw new InvalidOperationException($"{owner}: distribution is required.");
       if (distribution.EdgeStartMm < 0 || distribution.EdgeEndMm < 0) throw new InvalidOperationException($"{owner}: edge offsets cannot be negative.");
+      if (distribution.SpacingPattern?.Any(item => item.Count <= 0 || item.SpacingMm <= 0) == true)
+        throw new InvalidOperationException($"{owner}: spacingPattern items require positive count and spacingMm.");
       if (distribution.Zones?.Any(zone => zone.StartOffsetMm < 0 || zone.EndOffsetMm < zone.StartOffsetMm) == true)
         throw new InvalidOperationException($"{owner}: invalid distribution zone.");
+      if (distribution.Zones?.Any(zone => zone.SpacingPattern?.Any(item => item.Count <= 0 || item.SpacingMm <= 0) == true) == true)
+        throw new InvalidOperationException($"{owner}: zone spacingPattern items require positive count and spacingMm.");
     }
 
     private static void ValidateShape(ShapeConfig shape, string owner)
     {
       if (shape == null) throw new InvalidOperationException($"{owner}: shape is required.");
-      string[] allowed = { "auto", "straightNativeHooks", "uToLayer", "hairpinWrapLayer", "polycurve" };
+      string[] allowed = { "auto", "straight", "straightNativeHooks", "uToLayer", "hairpinWrapLayer", "polycurve" };
       if (!allowed.Contains(shape.Kind, StringComparer.OrdinalIgnoreCase)) throw new InvalidOperationException($"{owner}: unsupported shape.kind '{shape.Kind}'.");
+      if (shape.LegLengthMm.HasValue && shape.LegLengthMm.Value <= 0)
+        throw new InvalidOperationException($"{owner}: shape.legLengthMm must be positive when provided.");
       if (shape.Kind.Equals("polycurve", StringComparison.OrdinalIgnoreCase) && (shape.Segments == null || shape.Segments.Count == 0))
         throw new InvalidOperationException($"{owner}: polycurve requires segments.");
     }
@@ -658,7 +712,7 @@ namespace NMKRevit.Rebar
     private static void ValidateLayerShape(ShapeConfig shape, string owner)
     {
       ValidateShape(shape, owner);
-      string[] allowed = { "auto", "straightNativeHooks", "uToLayer", "polycurve" };
+      string[] allowed = { "auto", "straight", "straightNativeHooks", "uToLayer", "polycurve" };
       if (!allowed.Contains(shape.Kind, StringComparer.OrdinalIgnoreCase))
         throw new InvalidOperationException($"{owner}: shape.kind '{shape.Kind}' is not valid for a reinforcement layer.");
     }
@@ -846,6 +900,8 @@ namespace NMKRevit.Rebar
     [JsonProperty("kind")] public string Kind { get; set; } = "auto";
     [JsonProperty("hookTypeName")] public string? HookTypeName { get; set; }
     [JsonProperty("hookAngleDegrees")] public double HookAngleDegrees { get; set; }
+    [JsonProperty("legLengthMm")] public double? LegLengthMm { get; set; }
+    [JsonProperty("targetLayerId")] public string? TargetLayerId { get; set; }
     [JsonProperty("segments")] public List<ShapeSegment>? Segments { get; set; }
   }
 
@@ -869,9 +925,16 @@ namespace NMKRevit.Rebar
     [JsonProperty("edgeEndMm")] public double EdgeEndMm { get; set; } = 150;
     [JsonProperty("maximumSpacingMm")] public double MaximumSpacingMm { get; set; } = 250;
     [JsonProperty("offsetsMm")] public List<double>? OffsetsMm { get; set; }
+    [JsonProperty("spacingPattern")] public List<SpacingPatternItemConfig>? SpacingPattern { get; set; }
     [JsonProperty("spacingsMm")] public List<double>? SpacingsMm { get; set; }
     [JsonProperty("includeEnd")] public bool IncludeEnd { get; set; } = true;
     [JsonProperty("zones")] public List<DistributionZoneConfig>? Zones { get; set; }
+  }
+
+  public sealed class SpacingPatternItemConfig
+  {
+    [JsonProperty("count")] public int Count { get; set; }
+    [JsonProperty("spacingMm")] public double SpacingMm { get; set; }
   }
 
   public sealed class DistributionZoneConfig
@@ -881,6 +944,7 @@ namespace NMKRevit.Rebar
     [JsonProperty("layout")] public string Layout { get; set; } = "fixedSpacingWithRemainderAtEnd";
     [JsonProperty("maximumSpacingMm")] public double MaximumSpacingMm { get; set; } = 250;
     [JsonProperty("offsetsMm")] public List<double>? OffsetsMm { get; set; }
+    [JsonProperty("spacingPattern")] public List<SpacingPatternItemConfig>? SpacingPattern { get; set; }
     [JsonProperty("spacingsMm")] public List<double>? SpacingsMm { get; set; }
     [JsonProperty("includeEnd")] public bool IncludeEnd { get; set; } = true;
   }

@@ -6,119 +6,169 @@
   "sideCenterCoverMm": 150,
   "layers": [
     {
-      "id": "L1",
-      "diameterMm": 19,
-      "typeName": "FL1_D19",
+      "id": "F1",
+      "diameterMm": 25,
+      "typeName": "F1_D25",
       "direction": "X",
       "position": {
-        "reference": "aboveLayer",
-        "layerId": "L2",
-        "offsetMm": 0,
+        "reference": "topFace",
+        "offsetMm": 160,
         "clearanceMm": 0
       },
       "distribution": {
         "layout": "fixedSpacingWithRemainderAtEnd",
         "edgeStartMm": 150,
         "edgeEndMm": 150,
-        "maximumSpacingMm": 250,
+        "maximumSpacingMm": 145,
+        "offsetsMm": [250, 383, 503, 689, 876, 1022, 1169, 1289, 1408, 1608, 1728, 1848, 1981, 2127, 2314, 2500, 2620, 2753, 2873, 3006, 3126, 3246, 3379, 3499, 3632, 3752, 3872, 4005, 4125, 4225, 4431, 4618, 4791, 4910, 5044, 5150, 5350, 5456, 5590, 5709, 5882, 6069, 6275, 6375, 6495, 6628, 6748, 6881, 7001, 7121, 7254, 7374, 7494, 7627, 7747, 7880, 8000, 8186, 8373, 8519, 8665, 8785, 8905, 9105, 9225, 9345, 9478, 9624, 9811, 9997, 10117, 10250],
         "includeEnd": true
       },
       "shape": {
-        "kind": "auto",
-        "hookTypeName": null,
-        "hookAngleDegrees": 90
+        "kind": "straight"
       }
     },
     {
-      "id": "L2",
-      "diameterMm": 22,
-      "typeName": "FL2_D22",
+      "id": "F2",
+      "diameterMm": 35,
+      "typeName": "F2_D35",
       "direction": "Y",
       "position": {
         "reference": "topFace",
-        "offsetMm": 150,
+        "offsetMm": 130,
         "clearanceMm": 0
       },
       "distribution": {
         "layout": "fixedSpacingWithRemainderAtEnd",
         "edgeStartMm": 150,
         "edgeEndMm": 150,
-        "maximumSpacingMm": 250,
+        "maximumSpacingMm": 145,
+        "offsetsMm": [250, 383, 503, 689, 876, 1022, 1169, 1289, 1408, 1502, 1608, 1715, 1835, 1981, 2127, 2314, 2500, 2673, 2793, 2913, 3046, 3166, 3286, 3419, 3539, 3672, 3792, 3912, 4045, 4165, 4298, 4418, 4591, 4711, 4910, 5163, 5350, 5590, 5789, 5909, 6082, 6215, 6335, 6455, 6588, 6708, 6841, 6961, 7081, 7214, 7334, 7467, 7587, 7707, 7840, 8000, 8186, 8373, 8519, 8665, 8785, 8905, 8998, 9105, 9211, 9331, 9478, 9624, 9811, 9997, 10130, 10250],
         "includeEnd": true
       },
       "shape": {
-        "kind": "auto",
-        "hookTypeName": null,
-        "hookAngleDegrees": 90
+        "kind": "straight"
       }
     },
     {
-      "id": "L3",
-      "diameterMm": 35,
-      "typeName": "FL3_D35",
+      "id": "F5",
+      "diameterMm": 32,
+      "typeName": "F5_D32",
+      "direction": "X",
+      "position": {
+        "reference": "bottomFace",
+        "offsetMm": 247,
+        "clearanceMm": 0
+      },
+      "distribution": {
+        "layout": "fixedSpacingWithRemainderAtEnd",
+        "edgeStartMm": 150,
+        "edgeEndMm": 150,
+        "maximumSpacingMm": 240,
+        "offsetsMm": [375, 508, 690, 872, 1175, 1406, 1600, 1830, 2133, 2315, 2497, 2667, 2922, 3164, 3419, 3661, 3916, 4171, 4413, 4595, 4910, 5153, 5347, 5590, 5905, 6087, 6329, 6584, 6839, 7081, 7336, 7578, 7833, 8003, 8185, 8367, 8670, 8900, 9094, 9325, 9628, 9810, 10004, 10125],
+        "includeEnd": true
+      },
+      "shape": {
+        "kind": "straight"
+      }
+    },
+    {
+      "id": "F6",
+      "diameterMm": 22,
+      "typeName": "F6_D22",
       "direction": "Y",
       "position": {
         "reference": "bottomFace",
-        "offsetMm": 225,
+        "offsetMm": 247,
         "clearanceMm": 0
       },
       "distribution": {
         "layout": "fixedSpacingWithRemainderAtEnd",
         "edgeStartMm": 150,
         "edgeEndMm": 150,
-        "maximumSpacingMm": 250,
+        "maximumSpacingMm": 240,
+        "offsetsMm": [375, 496, 679, 861, 1152, 1395, 1589, 1832, 2123, 2306, 2500, 2743, 2998, 3241, 3495, 3750, 3993, 4248, 4430, 4613, 4904, 5147, 5353, 5584, 5875, 6057, 6252, 6495, 6750, 7005, 7247, 7502, 7745, 8000, 8182, 8364, 8656, 8899, 9105, 9336, 9627, 9821, 10004, 10125],
         "includeEnd": true
       },
       "shape": {
-        "kind": "auto"
+        "kind": "straight"
       }
     },
     {
-      "id": "L4",
-      "diameterMm": 38,
-      "typeName": "FL4_D38",
-      "direction": "X",
+      "id": "F4",
+      "diameterMm": 22,
+      "typeName": "F4_D22",
+      "direction": "Y",
       "position": {
-        "reference": "belowLayer",
-        "layerId": "L3",
-        "offsetMm": 0,
+        "reference": "bottomFace",
+        "offsetMm": 220,
         "clearanceMm": 0
       },
       "distribution": {
         "layout": "fixedSpacingWithRemainderAtEnd",
         "edgeStartMm": 150,
         "edgeEndMm": 150,
-        "maximumSpacingMm": 250,
+        "maximumSpacingMm": 240,
+        "offsetsMm": [250, 503, 689, 876, 1169, 1408, 1608, 1848, 2141, 2314, 2500, 2753, 3006, 3259, 3499, 3752, 4005, 4231, 4444, 4618, 4910, 5150, 5350, 5590, 5882, 6069, 6282, 6508, 6748, 7001, 7254, 7507, 7747, 8000, 8186, 8373, 8665, 8905, 9105, 9345, 9637, 9811, 9997, 10250],
         "includeEnd": true
       },
       "shape": {
-        "kind": "auto"
+        "kind": "straight"
+      }
+    },
+    {
+      "id": "F3",
+      "diameterMm": 32,
+      "typeName": "F3_D32",
+      "direction": "X",
+      "position": {
+        "reference": "bottomFace",
+        "offsetMm": 220,
+        "clearanceMm": 0
+      },
+      "distribution": {
+        "layout": "fixedSpacingWithRemainderAtEnd",
+        "edgeStartMm": 150,
+        "edgeEndMm": 150,
+        "maximumSpacingMm": 175,
+        "offsetsMm": [250, 370, 503, 689, 863, 1169, 1395, 1595, 1821, 2127, 2314, 2500, 2660, 2793, 2913, 3033, 3166, 3286, 3406, 3539, 3659, 3792, 3912, 4032, 4165, 4285, 4418, 4591, 4910, 5150, 5337, 5590, 5909, 6082, 6202, 6335, 6455, 6575, 6708, 6828, 6961, 7081, 7201, 7334, 7454, 7574, 7707, 7827, 8000, 8186, 8359, 8665, 8892, 9092, 9318, 9624, 9811, 9997, 10117, 10250],
+        "includeEnd": true
+      },
+      "shape": {
+        "kind": "straight"
       }
     }
   ],
   "hookBars": {
     "enabled": true,
-    "diameterMm": 16,
-    "typeName": "FHook_D16",
-    "wrapLayerId": "L2",
+    "diameterMm": 19,
+    "typeName": "F9_D19",
+    "wrapLayerId": "firstLayer",
     "longLegEnd": {
       "reference": "bottomOfLayer",
-      "layerId": "L3",
+      "layerId": "lastLayer",
       "offsetMm": 0
     },
     "hookTypeName": null,
     "wrapClearanceMm": 0,
-    "shortLegLengthMm": null,
+    "shortLegLengthMm": 152,
     "defaultSpacingMultiplier": 4,
     "defaultSkipL2BarsAtEdges": 2,
-    "defaultStaggerRows": true,
+    "defaultStaggerRows": false,
     "defaultLongitudinalShiftMm": 100,
-    "rowDistribution": null,
+    "rowDistribution": {
+      "layout": "fixedSpacingWithRemainderAtEnd",
+      "edgeStartMm": 150,
+      "edgeEndMm": 150,
+      "maximumSpacingMm": 2500,
+      "offsetsMm": [2250, 4000, 6500, 8250],
+      "includeEnd": false
+    },
     "longitudinalDistribution": {
-      "layout": "autoFromL2Staggered",
-      "edgeStartMm": 500,
-      "edgeEndMm": 500,
-      "maximumSpacingMm": 1000,
+      "layout": "fixedSpacingWithRemainderAtEnd",
+      "edgeStartMm": 150,
+      "edgeEndMm": 150,
+      "maximumSpacingMm": 197,
+      "offsetsMm": [150, 346, 542, 738, 935, 1131, 1327, 1523, 1719, 1915, 2112, 2308, 2504, 2700, 2896, 3092, 3288, 3485, 3681, 3877, 4073, 4269, 4465, 4662, 4858, 5054, 5250, 5446, 5642, 5838, 6035, 6231, 6427, 6623, 6819, 7015, 7212, 7408, 7604, 7800, 7996, 8192, 8388, 8585, 8781, 8977, 9173, 9369, 9565, 9762, 9958, 10154, 10350],
       "includeEnd": true
     },
     "shape": {
