@@ -2,26 +2,116 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "RebarFoundation.schema.json",
   "title": "NMK RebarFoundation configuration",
-  "type": "object",
-  "additionalProperties": false,
-  "required": ["schemaVersion", "units", "coordinateSystem", "sideCenterCoverMm", "layers", "hookBars"],
-  "properties": {
-    "$schema": { "type": "string" },
-    "schemaVersion": { "const": 1 },
-    "units": { "const": "mm" },
-    "coordinateSystem": {
-      "const": "selectedSolidLocalXYZ",
-      "description": "X is the selected solid's longest horizontal edge, Y is horizontal and perpendicular to X, and Z is global up."
-    },
-    "sideCenterCoverMm": { "type": "number", "minimum": 0 },
-    "layers": {
-      "type": "array",
-      "minItems": 1,
-      "items": { "$ref": "#/$defs/layer" }
-    },
-    "hookBars": { "$ref": "#/$defs/hookBars" }
-  },
+  "oneOf": [
+    { "$ref": "#/$defs/v1Config" },
+    { "$ref": "#/$defs/v2Config" }
+  ],
   "$defs": {
+    "v1Config": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schemaVersion", "units", "coordinateSystem", "sideCenterCoverMm", "layers", "hookBars"],
+      "properties": {
+        "$schema": { "type": "string" },
+        "schemaVersion": { "const": 1 },
+        "units": { "const": "mm" },
+        "coordinateSystem": { "const": "selectedSolidLocalXYZ" },
+        "sideCenterCoverMm": { "type": "number", "minimum": 0 },
+        "layers": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/layer" }
+        },
+        "hookBars": { "$ref": "#/$defs/hookBars" }
+      }
+    },
+    "v2Config": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schemaVersion", "units", "coordinateSystem", "barPieces"],
+      "properties": {
+        "$schema": { "type": "string" },
+        "schemaVersion": { "const": 2 },
+        "units": { "const": "mm" },
+        "coordinateSystem": {
+          "const": "selectedSolidLocalXYZ",
+          "description": "X is the selected solid's longest horizontal edge, Y is horizontal and perpendicular to X, and Z is global up."
+        },
+        "sideCenterCoverMm": { "type": "number", "minimum": 0, "default": 150 },
+        "barMarks": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/barMark" }
+        },
+        "barPieces": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/barPiece" }
+        },
+        "reviewNotes": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "barMark": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "diameterMm", "quantity"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "diameterMm": { "type": "number", "exclusiveMinimum": 0 },
+        "quantity": { "type": "integer", "minimum": 0 },
+        "description": { "type": ["string", "null"] }
+      }
+    },
+    "barPiece": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "diameterMm", "typeName", "sourceTypeName", "quantity", "shape", "placements"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "parentMark": { "type": ["string", "null"] },
+        "enabled": { "type": "boolean", "default": true },
+        "diameterMm": { "type": "number", "exclusiveMinimum": 0 },
+        "typeName": { "type": "string", "minLength": 1 },
+        "sourceTypeName": { "type": "string", "pattern": "^CSS[0-9]+(\\.[0-9]+)?$" },
+        "quantity": { "type": "integer", "minimum": 0 },
+        "shape": { "$ref": "#/$defs/shape" },
+        "placements": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/piecePlacement" }
+        },
+        "metadata": {
+          "type": "object",
+          "additionalProperties": { "type": "string" }
+        }
+      }
+    },
+    "piecePlacement": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["direction", "z"],
+      "properties": {
+        "id": { "type": ["string", "null"] },
+        "plane": { "enum": ["horizontal", "sideFace", "edge"], "default": "horizontal" },
+        "direction": { "enum": ["X", "Y"] },
+        "z": { "$ref": "#/$defs/placementZ" },
+        "lineStartOffsetMm": { "type": ["number", "null"], "minimum": 0 },
+        "lineEndOffsetMm": { "type": ["number", "null"], "minimum": 0 },
+        "distribution": { "oneOf": [{ "$ref": "#/$defs/distribution" }, { "type": "null" }] },
+        "secondaryDistribution": { "oneOf": [{ "$ref": "#/$defs/distribution" }, { "type": "null" }] }
+      }
+    },
+    "placementZ": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["reference", "offsetMm"],
+      "properties": {
+        "reference": { "enum": ["topFace", "bottomFace", "absoluteFromBottom", "absoluteFromTop"] },
+        "offsetMm": { "type": "number", "minimum": 0 }
+      }
+    },
     "layer": {
       "type": "object",
       "additionalProperties": false,
@@ -53,10 +143,23 @@
       "additionalProperties": false,
       "required": ["kind"],
       "properties": {
-        "kind": { "enum": ["auto", "straight", "straightNativeHooks", "uToLayer", "hairpinWrapLayer", "polycurve"] },
+        "kind": { "enum": ["auto", "straight", "straightNativeHooks", "uToLayer", "hairpinWrapLayer", "polycurve", "straightWithNativeHooks", "uBar", "hairpin", "piecewiseLine"] },
         "hookTypeName": { "type": ["string", "null"] },
+        "startHookTypeName": { "type": ["string", "null"] },
+        "endHookTypeName": { "type": ["string", "null"] },
         "hookAngleDegrees": { "type": "number", "minimum": 0, "maximum": 180 },
+        "hookStartMm": { "type": ["number", "null"], "minimum": 0 },
+        "hookEndMm": { "type": ["number", "null"], "minimum": 0 },
+        "startHookOrientation": { "enum": ["Left", "Right", "left", "right", null] },
+        "endHookOrientation": { "enum": ["Left", "Right", "left", "right", null] },
+        "hookLegDirection": { "enum": ["up", "down", "Up", "Down", null] },
+        "fallbackToLine": { "type": "boolean", "default": true },
+        "straightLengthMm": { "type": ["number", "null"], "exclusiveMinimum": 0 },
         "legLengthMm": { "type": ["number", "null"], "exclusiveMinimum": 0 },
+        "crownWidthMm": { "type": ["number", "null"], "exclusiveMinimum": 0 },
+        "longLegMm": { "type": ["number", "null"], "exclusiveMinimum": 0 },
+        "shortLegMm": { "type": ["number", "null"], "exclusiveMinimum": 0 },
+        "bendRadiusMm": { "type": ["number", "null"], "minimum": 0 },
         "targetLayerId": { "type": ["string", "null"], "minLength": 1 },
         "segments": {
           "type": ["array", "null"],
@@ -76,7 +179,6 @@
     },
     "point": {
       "type": "object",
-      "$comment": "For layer polycurves, uMm is measured from the minimum face along the bar direction and zMm from the solid bottom. For hairpins, uMm and zMm are offsets from the wrapped L2 bar centre.",
       "additionalProperties": false,
       "required": ["uMm", "zMm"],
       "properties": {
@@ -153,11 +255,7 @@
       "properties": {
         "reference": { "const": "bottomOfLayer" },
         "layerId": { "type": "string", "minLength": 1 },
-        "offsetMm": {
-          "type": "number",
-          "minimum": 0,
-          "description": "Distance below the bottom tangent of L3. Use 0 for just touching L3."
-        }
+        "offsetMm": { "type": "number", "minimum": 0 }
       }
     }
   }

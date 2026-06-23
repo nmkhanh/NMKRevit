@@ -46,63 +46,13 @@ namespace NMKRevit.Rebar
         if (RebarHostData.GetRebarHostData(host) == null)
           throw new InvalidOperationException("The selected FamilyInstance cannot host rebar. Use a reinforcement-compatible structural category and enable reinforcement.");
 
-        Dictionary<string, LayerConfig> layers = GetLayers(config);
-        int layerBars = 0;
-        int hairpinBars = 0;
-        var layouts = new Dictionary<string, LayerLayout>(StringComparer.OrdinalIgnoreCase);
-        var usedTypes = new List<string>();
-        var layerCounts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        string summary = config.SchemaVersion == 2
+          ? CreateFromVersion2(document, host, box, config)
+          : CreateFromVersion1(document, host, box, config);
 
-        using (var transaction = new Transaction(document, "Rebar foundation from JSON"))
-        {
-          transaction.Start();
-          var layerTypes = new Dictionary<string, RebarBarType>(StringComparer.OrdinalIgnoreCase);
-          foreach (LayerConfig layer in config.Layers)
-          {
-            layerTypes[layer.Id] = ResolveBarType(document, layer.DiameterMm, layer.TypeName, layer.Id);
-          }
-
-          Dictionary<string, double> elevations = ResolveLayerElevations(box, layers, layerTypes);
-          ValidateLayerBounds(box, layerTypes, elevations);
-          foreach (LayerConfig layer in config.Layers)
-          {
-            string id = layer.Id;
-            RebarBarType barType = layerTypes[id];
-            LayerLayout layout = CreateLayer(document, host, box, layer, barType, elevations[id], config.SideCenterCoverMm, elevations);
-            layouts[id] = layout;
-            layerBars += layout.Created;
-            layerCounts[id] = layout.Created;
-            usedTypes.Add(barType.Name);
-          }
-
-          if (config.HookBars?.Enabled == true)
-          {
-            HookBarConfig hook = config.HookBars;
-            RebarBarType hookType = ResolveBarType(document, hook.DiameterMm, hook.TypeName, "Hook");
-            LongLegEndConfig longLegEnd = hook.LongLegEnd ?? throw new InvalidOperationException("hookBars.longLegEnd is required.");
-            string wrapLayerId = ResolveLayerIdAlias(hook.WrapLayerId, config.Layers, true);
-            string endLayerId = ResolveLayerIdAlias(longLegEnd.LayerId, config.Layers, false);
-            if (!layouts.TryGetValue(wrapLayerId, out LayerLayout? wrapLayout))
-              throw new InvalidOperationException($"hookBars.wrapLayerId '{hook.WrapLayerId}' does not match any layer id.");
-            if (!layouts.TryGetValue(endLayerId, out LayerLayout? endLayout))
-              throw new InvalidOperationException($"hookBars.longLegEnd.layerId '{longLegEnd.LayerId}' does not match any layer id.");
-            hairpinBars = CreateHairpins(document, host, box, hook, hookType, wrapLayout, endLayout);
-            usedTypes.Add(hookType.Name);
-          }
-          transaction.Commit();
-        }
-
-        string counts = string.Join(", ", config.Layers.Select(layer =>
-        {
-          layerCounts.TryGetValue(layer.Id, out int created);
-          return $"{layer.Id}: {created}";
-        }));
         RevitTaskDialog.Show(
           "RebarFoundation",
-          $"JSON: {Path.GetFileName(jsonPath)}\n" +
-          $"Layer bars: {layerBars} ({counts})\n" +
-          $"Hairpin bars: {hairpinBars}\n" +
-          $"Types: {string.Join(", ", usedTypes.Distinct())}");
+          $"JSON: {Path.GetFileName(jsonPath)}\n" + summary);
         return Result.Succeeded;
       }
       catch (Autodesk.Revit.Exceptions.OperationCanceledException)
@@ -115,6 +65,387 @@ namespace NMKRevit.Rebar
         RevitTaskDialog.Show("RebarFoundation", exception.Message);
         return Result.Failed;
       }
+    }
+
+    private static string CreateFromVersion1(Document document, Element host, RectangularSolid box, FoundationRebarConfig config)
+    {
+      Dictionary<string, LayerConfig> layers = GetLayers(config);
+      int layerBars = 0;
+      int hairpinBars = 0;
+      var layouts = new Dictionary<string, LayerLayout>(StringComparer.OrdinalIgnoreCase);
+      var usedTypes = new List<string>();
+      var layerCounts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+
+      using (var transaction = new Transaction(document, "Rebar foundation from JSON"))
+      {
+        transaction.Start();
+        var layerTypes = new Dictionary<string, RebarBarType>(StringComparer.OrdinalIgnoreCase);
+        foreach (LayerConfig layer in config.Layers)
+        {
+          layerTypes[layer.Id] = ResolveBarType(document, layer.DiameterMm, layer.TypeName, layer.Id);
+        }
+
+        Dictionary<string, double> elevations = ResolveLayerElevations(box, layers, layerTypes);
+        ValidateLayerBounds(box, layerTypes, elevations);
+        foreach (LayerConfig layer in config.Layers)
+        {
+          string id = layer.Id;
+          RebarBarType barType = layerTypes[id];
+          LayerLayout layout = CreateLayer(document, host, box, layer, barType, elevations[id], config.SideCenterCoverMm, elevations);
+          layouts[id] = layout;
+          layerBars += layout.Created;
+          layerCounts[id] = layout.Created;
+          usedTypes.Add(barType.Name);
+        }
+
+        if (config.HookBars?.Enabled == true)
+        {
+          HookBarConfig hook = config.HookBars;
+          RebarBarType hookType = ResolveBarType(document, hook.DiameterMm, hook.TypeName, "Hook");
+          LongLegEndConfig longLegEnd = hook.LongLegEnd ?? throw new InvalidOperationException("hookBars.longLegEnd is required.");
+          string wrapLayerId = ResolveLayerIdAlias(hook.WrapLayerId, config.Layers, true);
+          string endLayerId = ResolveLayerIdAlias(longLegEnd.LayerId, config.Layers, false);
+          if (!layouts.TryGetValue(wrapLayerId, out LayerLayout? wrapLayout))
+            throw new InvalidOperationException($"hookBars.wrapLayerId '{hook.WrapLayerId}' does not match any layer id.");
+          if (!layouts.TryGetValue(endLayerId, out LayerLayout? endLayout))
+            throw new InvalidOperationException($"hookBars.longLegEnd.layerId '{longLegEnd.LayerId}' does not match any layer id.");
+          hairpinBars = CreateHairpins(document, host, box, hook, hookType, wrapLayout, endLayout);
+          usedTypes.Add(hookType.Name);
+        }
+        transaction.Commit();
+      }
+
+      string counts = string.Join(", ", config.Layers.Select(layer =>
+      {
+        layerCounts.TryGetValue(layer.Id, out int created);
+        return $"{layer.Id}: {created}";
+      }));
+      return
+        $"Schema: v1\n" +
+        $"Layer bars: {layerBars} ({counts})\n" +
+        $"Hairpin bars: {hairpinBars}\n" +
+        $"Types: {string.Join(", ", usedTypes.Distinct())}";
+    }
+
+    private static string CreateFromVersion2(Document document, Element host, RectangularSolid box, FoundationRebarConfig config)
+    {
+      var counts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+      var usedTypes = new List<string>();
+      var warnings = new List<string>();
+      int total = 0;
+
+      using (var transaction = new Transaction(document, "Rebar foundation v2 from JSON"))
+      {
+        transaction.Start();
+        foreach (RebarPieceConfig piece in config.BarPieces.Where(piece => piece.Enabled))
+        {
+          RebarBarType barType = ResolveBarType(document, piece.DiameterMm, piece.TypeName, piece.SourceTypeName, piece.Id);
+          int created = CreateBarPiece(document, host, box, piece, barType, config.SideCenterCoverMm, warnings);
+          counts[piece.Id] = created;
+          total += created;
+          usedTypes.Add(barType.Name);
+          if (piece.Quantity > 0 && piece.Quantity != created)
+            warnings.Add($"{piece.Id}: schedule quantity {piece.Quantity} differs from created count {created}.");
+        }
+        transaction.Commit();
+      }
+
+      string countText = string.Join(", ", config.BarPieces.Where(piece => piece.Enabled).Select(piece =>
+      {
+        counts.TryGetValue(piece.Id, out int created);
+        return $"{piece.Id}: {created}";
+      }));
+      string warningText = warnings.Count == 0
+        ? string.Empty
+        : "\nWarnings: " + string.Join("; ", warnings.Take(5)) + (warnings.Count > 5 ? $" (+{warnings.Count - 5} more)" : string.Empty);
+      return
+        $"Schema: v2\n" +
+        $"Bar pieces: {total} ({countText})\n" +
+        $"Types: {string.Join(", ", usedTypes.Distinct())}" +
+        warningText;
+    }
+
+    private static int CreateBarPiece(
+      Document document,
+      Element host,
+      RectangularSolid box,
+      RebarPieceConfig piece,
+      RebarBarType barType,
+      double defaultSideCoverMm,
+      List<string> warnings)
+    {
+      ShapeConfig shape = piece.Shape ?? throw new InvalidOperationException($"barPieces.{piece.Id}: shape is required.");
+      int count = 0;
+      foreach (PiecePlacementConfig placement in piece.Placements)
+      {
+        bool alongX = placement.Direction.Equals("X", StringComparison.OrdinalIgnoreCase);
+        string kind = shape.Kind ?? string.Empty;
+        if (kind.Equals("hairpin", StringComparison.OrdinalIgnoreCase))
+        {
+          count += CreateHairpinPiece(document, host, box, piece, barType, placement, shape, warnings);
+          continue;
+        }
+
+        double z = ResolvePlacementZ(box, placement.Z);
+        IList<double> positions = BuildPlacementPositions(
+          alongX ? box.MinY : box.MinX,
+          alongX ? box.MaxY : box.MaxX,
+          placement.Distribution);
+        foreach (double position in positions)
+        {
+          IList<Curve> curves;
+          BarTerminationSpec terminations = BarTerminationSpec.None;
+          XYZ planeNormal = alongX ? box.YAxis : box.XAxis;
+
+          if (kind.Equals("straight", StringComparison.OrdinalIgnoreCase))
+          {
+            curves = BuildStraightPieceCurves(box, alongX, position, z, placement, shape, defaultSideCoverMm);
+          }
+          else if (kind.Equals("straightWithNativeHooks", StringComparison.OrdinalIgnoreCase))
+          {
+            double angle = shape.HookAngleDegrees <= 0 ? 90 : shape.HookAngleDegrees;
+            if (Math.Abs(angle - 180) <= 0.5 && TryBuildNativeHookSpec(document, piece, barType, shape, warnings, out terminations))
+              curves = BuildStraightPieceCurves(box, alongX, position, z, placement, shape, defaultSideCoverMm);
+            else
+            {
+              if (Math.Abs(angle - 180) > 0.5)
+                warnings.Add($"{piece.Id}: hook angle {angle:0.###} uses explicit line legs; only 180-degree hooks use RebarHookType.");
+              curves = BuildStraightWithExplicitLegs(box, alongX, position, z, placement, shape, defaultSideCoverMm);
+            }
+          }
+          else if (kind.Equals("uBar", StringComparison.OrdinalIgnoreCase))
+          {
+            curves = BuildStraightWithExplicitLegs(box, alongX, position, z, placement, shape, defaultSideCoverMm);
+          }
+          else if (kind.Equals("piecewiseLine", StringComparison.OrdinalIgnoreCase))
+          {
+            curves = BuildPiecewiseLineCurves(box, alongX, position, shape);
+          }
+          else
+          {
+            throw new InvalidOperationException($"barPieces.{piece.Id}: unsupported shape.kind '{kind}'.");
+          }
+
+          ValidateCurvesInsideBox(curves, box, $"barPieces.{piece.Id}");
+          CreateRebar(document, host, barType, planeNormal, curves, terminations, $"barPieces.{piece.Id}");
+          count++;
+        }
+      }
+      return count;
+    }
+
+    private static int CreateHairpinPiece(
+      Document document,
+      Element host,
+      RectangularSolid box,
+      RebarPieceConfig piece,
+      RebarBarType barType,
+      PiecePlacementConfig placement,
+      ShapeConfig shape,
+      List<string> warnings)
+    {
+      bool alongX = placement.Direction.Equals("X", StringComparison.OrdinalIgnoreCase);
+      IList<double> longitudinalPositions = BuildPlacementPositions(alongX ? box.MinX : box.MinY, alongX ? box.MaxX : box.MaxY, placement.Distribution);
+      IList<double> rowPositions = BuildPlacementPositions(alongX ? box.MinY : box.MinX, alongX ? box.MaxY : box.MaxX, placement.SecondaryDistribution);
+      double bottomZ = ResolvePlacementZ(box, placement.Z);
+      int count = 0;
+
+      foreach (double longitudinal in longitudinalPositions)
+      {
+        foreach (double row in rowPositions)
+        {
+          IList<Curve> curves = BuildHairpinPieceCurves(box, alongX, longitudinal, row, bottomZ, shape);
+          ValidateCurvesInsideBox(curves, box, $"barPieces.{piece.Id}");
+          CreateRebar(document, host, barType, alongX ? box.XAxis : box.YAxis, curves, BarTerminationSpec.None, $"barPieces.{piece.Id}");
+          count++;
+        }
+      }
+
+      if (shape.BendRadiusMm.HasValue)
+        warnings.Add($"{piece.Id}: bend radius {shape.BendRadiusMm.Value:0.###} mm is stored as metadata; Revit controls the physical bend radius from the bar type.");
+      return count;
+    }
+
+    private static IList<double> BuildPlacementPositions(double min, double max, DistributionConfig? distribution)
+    {
+      return distribution == null ? new List<double> { (min + max) * 0.5 } : BuildPositions(min, max, distribution);
+    }
+
+    private static double ResolvePlacementZ(RectangularSolid box, PlacementZConfig? z)
+    {
+      z ??= new PlacementZConfig();
+      string reference = z.Reference ?? "bottomFace";
+      if (reference.Equals("topFace", StringComparison.OrdinalIgnoreCase))
+        return box.MaxZ - Mm(z.OffsetMm);
+      if (reference.Equals("bottomFace", StringComparison.OrdinalIgnoreCase))
+        return box.MinZ + Mm(z.OffsetMm);
+      if (reference.Equals("absoluteFromBottom", StringComparison.OrdinalIgnoreCase))
+        return box.MinZ + Mm(z.OffsetMm);
+      if (reference.Equals("absoluteFromTop", StringComparison.OrdinalIgnoreCase))
+        return box.MaxZ - Mm(z.OffsetMm);
+      throw new InvalidOperationException($"Unsupported placement z.reference '{reference}'.");
+    }
+
+    private static IList<Curve> BuildStraightPieceCurves(
+      RectangularSolid box,
+      bool alongX,
+      double position,
+      double z,
+      PiecePlacementConfig placement,
+      ShapeConfig shape,
+      double defaultSideCoverMm)
+    {
+      ResolveLineRange(box, alongX, placement, shape, defaultSideCoverMm, out double u0, out double u1);
+      return new List<Curve>
+      {
+        alongX
+          ? Line.CreateBound(box.ToWorld(u0, position, z), box.ToWorld(u1, position, z))
+          : Line.CreateBound(box.ToWorld(position, u0, z), box.ToWorld(position, u1, z))
+      };
+    }
+
+    private static IList<Curve> BuildStraightWithExplicitLegs(
+      RectangularSolid box,
+      bool alongX,
+      double position,
+      double z,
+      PiecePlacementConfig placement,
+      ShapeConfig shape,
+      double defaultSideCoverMm)
+    {
+      ResolveLineRange(box, alongX, placement, shape, defaultSideCoverMm, out double u0, out double u1);
+      double startLeg = Mm(shape.HookStartMm ?? shape.LegLengthMm ?? 0);
+      double endLeg = Mm(shape.HookEndMm ?? shape.LegLengthMm ?? 0);
+      if (startLeg <= Tolerance && endLeg <= Tolerance)
+        throw new InvalidOperationException("Explicit hook fallback requires hookStartMm/hookEndMm or legLengthMm.");
+      double sign = (shape.HookLegDirection ?? "down").Equals("up", StringComparison.OrdinalIgnoreCase) ? 1 : -1;
+      var points = new List<XYZ>();
+      if (startLeg > Tolerance) points.Add(PointOnLayer(box, alongX, position, u0, z + sign * startLeg));
+      points.Add(PointOnLayer(box, alongX, position, u0, z));
+      points.Add(PointOnLayer(box, alongX, position, u1, z));
+      if (endLeg > Tolerance) points.Add(PointOnLayer(box, alongX, position, u1, z + sign * endLeg));
+      return ConsecutiveLines(points);
+    }
+
+    private static IList<Curve> BuildPiecewiseLineCurves(RectangularSolid box, bool alongX, double position, ShapeConfig shape)
+    {
+      return BuildSegments(shape, point =>
+      {
+        double u = (alongX ? box.MinX : box.MinY) + Mm(point.Umm);
+        double z = box.MinZ + Mm(point.Zmm);
+        return PointOnLayer(box, alongX, position, u, z);
+      });
+    }
+
+    private static IList<Curve> BuildHairpinPieceCurves(
+      RectangularSolid box,
+      bool alongX,
+      double longitudinal,
+      double row,
+      double bottomZ,
+      ShapeConfig shape)
+    {
+      double halfWidth = Mm((shape.CrownWidthMm ?? 0) * 0.5);
+      double longLeg = Mm(shape.LongLegMm ?? 0);
+      double shortLeg = Mm(shape.ShortLegMm ?? 0);
+      if (halfWidth <= Tolerance || longLeg <= Tolerance || shortLeg <= Tolerance)
+        throw new InvalidOperationException("hairpin requires positive crownWidthMm, longLegMm, and shortLegMm.");
+      double topZ = bottomZ + longLeg;
+      double shortBottomZ = topZ - shortLeg;
+      return new List<Curve>
+      {
+        Line.CreateBound(HairpinPoint(box, alongX, longitudinal, row, -halfWidth, bottomZ), HairpinPoint(box, alongX, longitudinal, row, -halfWidth, topZ)),
+        Line.CreateBound(HairpinPoint(box, alongX, longitudinal, row, -halfWidth, topZ), HairpinPoint(box, alongX, longitudinal, row, halfWidth, topZ)),
+        Line.CreateBound(HairpinPoint(box, alongX, longitudinal, row, halfWidth, topZ), HairpinPoint(box, alongX, longitudinal, row, halfWidth, shortBottomZ))
+      };
+    }
+
+    private static IList<Curve> ConsecutiveLines(IList<XYZ> points)
+    {
+      if (points.Count < 2) throw new InvalidOperationException("At least two points are required to create rebar.");
+      var curves = new List<Curve>();
+      for (int index = 1; index < points.Count; index++)
+        curves.Add(Line.CreateBound(points[index - 1], points[index]));
+      return curves;
+    }
+
+    private static void ResolveLineRange(
+      RectangularSolid box,
+      bool alongX,
+      PiecePlacementConfig placement,
+      ShapeConfig shape,
+      double defaultSideCoverMm,
+      out double u0,
+      out double u1)
+    {
+      double min = alongX ? box.MinX : box.MinY;
+      double max = alongX ? box.MaxX : box.MaxY;
+      bool hasStart = placement.LineStartOffsetMm.HasValue;
+      bool hasEnd = placement.LineEndOffsetMm.HasValue;
+      u0 = min + Mm(placement.LineStartOffsetMm ?? defaultSideCoverMm);
+      u1 = max - Mm(placement.LineEndOffsetMm ?? defaultSideCoverMm);
+
+      if (shape.StraightLengthMm.HasValue)
+      {
+        double length = Mm(shape.StraightLengthMm.Value);
+        if (hasStart && !hasEnd)
+          u1 = u0 + length;
+        else if (!hasStart && hasEnd)
+          u0 = u1 - length;
+        else if (!hasStart && !hasEnd)
+        {
+          double center = (min + max) * 0.5;
+          u0 = center - length * 0.5;
+          u1 = center + length * 0.5;
+        }
+      }
+
+      if (u1 <= u0)
+        throw new InvalidOperationException("Bar line length is not positive.");
+    }
+
+    private static bool TryBuildNativeHookSpec(
+      Document document,
+      RebarPieceConfig piece,
+      RebarBarType barType,
+      ShapeConfig shape,
+      List<string> warnings,
+      out BarTerminationSpec specification)
+    {
+      specification = BarTerminationSpec.None;
+      try
+      {
+        double angle = shape.HookAngleDegrees <= 0 ? 90 : shape.HookAngleDegrees;
+        if (Math.Abs(angle - 180) > 0.5)
+          throw new InvalidOperationException("Only 180-degree hooks are created with RebarHookType; other hooked shapes must be explicit line geometry.");
+        RebarHookType? startHook = (shape.HookStartMm ?? shape.LegLengthMm ?? 0) > 0
+          ? ResolveHookType(document, barType, shape.StartHookTypeName ?? shape.HookTypeName, angle)
+          : null;
+        RebarHookType? endHook = (shape.HookEndMm ?? shape.LegLengthMm ?? 0) > 0
+          ? ResolveHookType(document, barType, shape.EndHookTypeName ?? shape.HookTypeName, angle)
+          : null;
+        if (startHook == null && endHook == null)
+          throw new InvalidOperationException("No hook length was specified.");
+        specification = new BarTerminationSpec(
+          startHook,
+          endHook,
+          ParseHookOrientation(shape.StartHookOrientation, RebarTerminationOrientation.Right),
+          ParseHookOrientation(shape.EndHookOrientation, RebarTerminationOrientation.Left));
+        return true;
+      }
+      catch (Exception exception) when (shape.FallbackToLine)
+      {
+        warnings.Add($"{piece.Id}: native hook unavailable, used explicit line legs instead ({exception.Message})");
+        return false;
+      }
+    }
+
+    private static RebarTerminationOrientation ParseHookOrientation(string? value, RebarTerminationOrientation fallback)
+    {
+      if (string.IsNullOrWhiteSpace(value)) return fallback;
+      return Enum.TryParse(value, true, out RebarTerminationOrientation result)
+        ? result
+        : throw new InvalidOperationException($"Unsupported hook orientation '{value}'. Use Left or Right.");
     }
 
     private static string? SelectJsonFile()
@@ -134,14 +465,25 @@ namespace NMKRevit.Rebar
 
     private static FoundationRebarConfig LoadConfig(string path)
     {
-      var settings = new JsonSerializerSettings { MissingMemberHandling = MissingMemberHandling.Error };
+      var settings = new JsonSerializerSettings { MissingMemberHandling = MissingMemberHandling.Ignore };
       FoundationRebarConfig? config = JsonConvert.DeserializeObject<FoundationRebarConfig>(File.ReadAllText(path), settings);
       if (config == null) throw new InvalidOperationException("The JSON file is empty.");
-      if (config.SchemaVersion != 1) throw new InvalidOperationException("Only schemaVersion 1 is supported.");
+      if (config.SchemaVersion != 1 && config.SchemaVersion != 2) throw new InvalidOperationException("Only schemaVersion 1 and 2 are supported.");
       if (!config.Units.Equals("mm", StringComparison.OrdinalIgnoreCase))
         throw new InvalidOperationException("Only millimetres (units = mm) are supported.");
       if (!config.CoordinateSystem.Equals("selectedSolidLocalXYZ", StringComparison.OrdinalIgnoreCase))
         throw new InvalidOperationException("Only coordinateSystem selectedSolidLocalXYZ is supported.");
+      if (config.SchemaVersion == 2)
+      {
+        ValidateVersion2Config(config);
+        return config;
+      }
+      ValidateVersion1Config(config);
+      return config;
+    }
+
+    private static void ValidateVersion1Config(FoundationRebarConfig config)
+    {
       if (config.Layers == null || config.Layers.Count == 0)
         throw new InvalidOperationException("JSON must contain layers.");
 
@@ -161,7 +503,43 @@ namespace NMKRevit.Rebar
         if (config.HookBars.RowDistribution != null) ValidateDistribution(config.HookBars.RowDistribution, "hookBars.rowDistribution");
         ValidateHookShape(config.HookBars.Shape, "hookBars");
       }
-      return config;
+    }
+
+    private static void ValidateVersion2Config(FoundationRebarConfig config)
+    {
+      if (config.BarPieces == null || config.BarPieces.Count == 0)
+        throw new InvalidOperationException("schemaVersion 2 JSON must contain barPieces.");
+      var duplicate = config.BarPieces.GroupBy(piece => piece.Id, StringComparer.OrdinalIgnoreCase).FirstOrDefault(group => group.Count() > 1);
+      if (duplicate != null) throw new InvalidOperationException($"Duplicate bar piece id: {duplicate.Key}.");
+
+      foreach (RebarPieceConfig piece in config.BarPieces)
+      {
+        if (string.IsNullOrWhiteSpace(piece.Id)) throw new InvalidOperationException("Every bar piece requires id.");
+        if (piece.DiameterMm <= 0) throw new InvalidOperationException($"barPieces.{piece.Id}: diameterMm must be positive.");
+        if (piece.Quantity < 0) throw new InvalidOperationException($"barPieces.{piece.Id}: quantity cannot be negative.");
+        if (piece.Shape == null) throw new InvalidOperationException($"barPieces.{piece.Id}: shape is required.");
+        ValidatePieceShape(piece.Shape, $"barPieces.{piece.Id}");
+        if (piece.Placements == null || piece.Placements.Count == 0)
+          throw new InvalidOperationException($"barPieces.{piece.Id}: placements must contain at least one placement.");
+        foreach (PiecePlacementConfig placement in piece.Placements)
+        {
+          if (!IsDirection(placement.Direction))
+            throw new InvalidOperationException($"barPieces.{piece.Id}: placement.direction must be X or Y.");
+          if (placement.Distribution != null) ValidateDistribution(placement.Distribution, $"barPieces.{piece.Id}.placement");
+          if (placement.SecondaryDistribution != null) ValidateDistribution(placement.SecondaryDistribution, $"barPieces.{piece.Id}.placement.secondaryDistribution");
+          ValidatePlacementZ(placement.Z, $"barPieces.{piece.Id}.placement.z");
+        }
+      }
+    }
+
+    private static void ValidatePlacementZ(PlacementZConfig? z, string owner)
+    {
+      z ??= new PlacementZConfig();
+      string reference = z.Reference ?? "bottomFace";
+      string[] allowed = { "topFace", "bottomFace", "absoluteFromBottom", "absoluteFromTop" };
+      if (!allowed.Contains(reference, StringComparer.OrdinalIgnoreCase))
+        throw new InvalidOperationException($"{owner}: unsupported reference '{reference}'.");
+      if (z.OffsetMm < 0) throw new InvalidOperationException($"{owner}: offsetMm cannot be negative.");
     }
 
     private static Dictionary<string, LayerConfig> GetLayers(FoundationRebarConfig config)
@@ -268,7 +646,11 @@ namespace NMKRevit.Rebar
       string shapeKind = NormalizeLayerShapeKind(layer);
       RebarHookType? hook90 = null;
       if (shapeKind.Equals("straightNativeHooks", StringComparison.OrdinalIgnoreCase) && !layer.Shape.LegLengthMm.HasValue)
-        hook90 = ResolveHookType(document, barType, layer.Shape.HookTypeName, layer.Shape.HookAngleDegrees <= 0 ? 90 : layer.Shape.HookAngleDegrees);
+      {
+        double angle = layer.Shape.HookAngleDegrees <= 0 ? 90 : layer.Shape.HookAngleDegrees;
+        if (Math.Abs(angle - 180) <= 0.5)
+          hook90 = ResolveHookType(document, barType, layer.Shape.HookTypeName, angle);
+      }
 
       int count = 0;
       foreach (double position in positions)
@@ -349,11 +731,11 @@ namespace NMKRevit.Rebar
       double tangentLength = shape.LegLengthMm.HasValue ? Mm(shape.LegLengthMm.Value) : 0;
       if (tangentLength <= Tolerance)
       {
-        if (hook90 == null) throw new InvalidOperationException("The 90-degree hook type does not provide a valid automatic length.");
+        if (hook90 == null) throw new InvalidOperationException("straightNativeHooks without legLengthMm is only supported for 180-degree hooks. For 90-degree hooks, provide legLengthMm so the tool can draw explicit line legs.");
         tangentLength = barType.GetHookTangentLength(hook90.Id);
         if (tangentLength <= Tolerance) tangentLength = hook90.GetHookExtensionLength(barType);
       }
-      if (tangentLength <= 0) throw new InvalidOperationException("The 90-degree hook type does not provide a valid automatic length.");
+      if (tangentLength <= 0) throw new InvalidOperationException("The hook type does not provide a valid automatic length.");
 
       XYZ leftBottom = PointOnLayer(box, alongX, position, u0, mainZ - tangentLength);
       XYZ leftTop = PointOnLayer(box, alongX, position, u0, mainZ);
@@ -660,13 +1042,18 @@ namespace NMKRevit.Rebar
 
     private static RebarBarType ResolveBarType(Document document, double diameterMm, string? requestedName, string layerId)
     {
+      return ResolveBarType(document, diameterMm, requestedName, null, layerId);
+    }
+
+    private static RebarBarType ResolveBarType(Document document, double diameterMm, string? requestedName, string? sourceTypeName, string layerId)
+    {
       string typeName = string.IsNullOrWhiteSpace(requestedName) ? $"F{layerId}_D{diameterMm:0.###}" : requestedName.Trim();
       List<RebarBarType> types = new FilteredElementCollector(document).OfClass(typeof(RebarBarType)).Cast<RebarBarType>().OrderBy(type => type.Name).ToList();
       RebarBarType? named = types.FirstOrDefault(type => type.Name.Equals(typeName, StringComparison.OrdinalIgnoreCase));
       if (named != null) return named;
 
       string diameterToken = diameterMm.ToString("0.###", CultureInfo.InvariantCulture);
-      string sourceName = $"CSS{diameterToken}";
+      string sourceName = string.IsNullOrWhiteSpace(sourceTypeName) ? $"CSS{diameterToken}" : sourceTypeName.Trim();
       RebarBarType? source = types.FirstOrDefault(type => type.Name.Equals(sourceName, StringComparison.OrdinalIgnoreCase));
       if (source == null)
         throw new InvalidOperationException($"Template RebarBarType '{sourceName}' was not found for JSON diameter {diameterToken} mm.");
@@ -723,6 +1110,33 @@ namespace NMKRevit.Rebar
       string[] allowed = { "auto", "hairpinWrapLayer", "polycurve" };
       if (!allowed.Contains(shape.Kind, StringComparer.OrdinalIgnoreCase))
         throw new InvalidOperationException($"{owner}: shape.kind '{shape.Kind}' is not valid for a hairpin bar.");
+    }
+
+    private static void ValidatePieceShape(ShapeConfig shape, string owner)
+    {
+      if (shape == null) throw new InvalidOperationException($"{owner}: shape is required.");
+      string[] allowed = { "straight", "straightWithNativeHooks", "uBar", "hairpin", "piecewiseLine" };
+      if (!allowed.Contains(shape.Kind, StringComparer.OrdinalIgnoreCase))
+        throw new InvalidOperationException($"{owner}: unsupported shape.kind '{shape.Kind}'.");
+      if (shape.StraightLengthMm.HasValue && shape.StraightLengthMm.Value <= 0)
+        throw new InvalidOperationException($"{owner}: straightLengthMm must be positive when provided.");
+      if (shape.HookStartMm.HasValue && shape.HookStartMm.Value < 0)
+        throw new InvalidOperationException($"{owner}: hookStartMm cannot be negative.");
+      if (shape.HookEndMm.HasValue && shape.HookEndMm.Value < 0)
+        throw new InvalidOperationException($"{owner}: hookEndMm cannot be negative.");
+      if (shape.LegLengthMm.HasValue && shape.LegLengthMm.Value <= 0)
+        throw new InvalidOperationException($"{owner}: legLengthMm must be positive when provided.");
+      if (shape.Kind.Equals("piecewiseLine", StringComparison.OrdinalIgnoreCase) && (shape.Segments == null || shape.Segments.Count == 0))
+        throw new InvalidOperationException($"{owner}: piecewiseLine requires segments.");
+      if (shape.Kind.Equals("hairpin", StringComparison.OrdinalIgnoreCase))
+      {
+        if (!shape.CrownWidthMm.HasValue || shape.CrownWidthMm.Value <= 0)
+          throw new InvalidOperationException($"{owner}: hairpin requires positive crownWidthMm.");
+        if (!shape.LongLegMm.HasValue || shape.LongLegMm.Value <= 0)
+          throw new InvalidOperationException($"{owner}: hairpin requires positive longLegMm.");
+        if (!shape.ShortLegMm.HasValue || shape.ShortLegMm.Value <= 0)
+          throw new InvalidOperationException($"{owner}: hairpin requires positive shortLegMm.");
+      }
     }
 
     private static void ValidateCurvesInsideBox(IEnumerable<Curve> curves, RectangularSolid box, string owner)
@@ -847,6 +1261,49 @@ namespace NMKRevit.Rebar
     [JsonProperty("sideCenterCoverMm")] public double SideCenterCoverMm { get; set; } = 150;
     [JsonProperty("layers")] public List<LayerConfig> Layers { get; set; } = new();
     [JsonProperty("hookBars")] public HookBarConfig? HookBars { get; set; }
+    [JsonProperty("barMarks")] public List<RebarMarkConfig> BarMarks { get; set; } = new();
+    [JsonProperty("barPieces")] public List<RebarPieceConfig> BarPieces { get; set; } = new();
+    [JsonProperty("reviewNotes")] public List<string> ReviewNotes { get; set; } = new();
+  }
+
+  public sealed class RebarMarkConfig
+  {
+    [JsonProperty("id")] public string Id { get; set; } = string.Empty;
+    [JsonProperty("diameterMm")] public double DiameterMm { get; set; }
+    [JsonProperty("quantity")] public int Quantity { get; set; }
+    [JsonProperty("description")] public string? Description { get; set; }
+  }
+
+  public sealed class RebarPieceConfig
+  {
+    [JsonProperty("id")] public string Id { get; set; } = string.Empty;
+    [JsonProperty("parentMark")] public string? ParentMark { get; set; }
+    [JsonProperty("enabled")] public bool Enabled { get; set; } = true;
+    [JsonProperty("diameterMm")] public double DiameterMm { get; set; }
+    [JsonProperty("typeName")] public string? TypeName { get; set; }
+    [JsonProperty("sourceTypeName")] public string? SourceTypeName { get; set; }
+    [JsonProperty("quantity")] public int Quantity { get; set; }
+    [JsonProperty("shape")] public ShapeConfig Shape { get; set; } = new();
+    [JsonProperty("placements")] public List<PiecePlacementConfig> Placements { get; set; } = new();
+    [JsonProperty("metadata")] public Dictionary<string, string> Metadata { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+  }
+
+  public sealed class PiecePlacementConfig
+  {
+    [JsonProperty("id")] public string? Id { get; set; }
+    [JsonProperty("plane")] public string Plane { get; set; } = "horizontal";
+    [JsonProperty("direction")] public string Direction { get; set; } = "X";
+    [JsonProperty("z")] public PlacementZConfig Z { get; set; } = new();
+    [JsonProperty("lineStartOffsetMm")] public double? LineStartOffsetMm { get; set; }
+    [JsonProperty("lineEndOffsetMm")] public double? LineEndOffsetMm { get; set; }
+    [JsonProperty("distribution")] public DistributionConfig? Distribution { get; set; }
+    [JsonProperty("secondaryDistribution")] public DistributionConfig? SecondaryDistribution { get; set; }
+  }
+
+  public sealed class PlacementZConfig
+  {
+    [JsonProperty("reference")] public string Reference { get; set; } = "bottomFace";
+    [JsonProperty("offsetMm")] public double OffsetMm { get; set; }
   }
 
   public sealed class LayerConfig
@@ -899,8 +1356,21 @@ namespace NMKRevit.Rebar
   {
     [JsonProperty("kind")] public string Kind { get; set; } = "auto";
     [JsonProperty("hookTypeName")] public string? HookTypeName { get; set; }
+    [JsonProperty("startHookTypeName")] public string? StartHookTypeName { get; set; }
+    [JsonProperty("endHookTypeName")] public string? EndHookTypeName { get; set; }
     [JsonProperty("hookAngleDegrees")] public double HookAngleDegrees { get; set; }
+    [JsonProperty("hookStartMm")] public double? HookStartMm { get; set; }
+    [JsonProperty("hookEndMm")] public double? HookEndMm { get; set; }
+    [JsonProperty("startHookOrientation")] public string? StartHookOrientation { get; set; }
+    [JsonProperty("endHookOrientation")] public string? EndHookOrientation { get; set; }
+    [JsonProperty("hookLegDirection")] public string? HookLegDirection { get; set; }
+    [JsonProperty("fallbackToLine")] public bool FallbackToLine { get; set; } = true;
+    [JsonProperty("straightLengthMm")] public double? StraightLengthMm { get; set; }
     [JsonProperty("legLengthMm")] public double? LegLengthMm { get; set; }
+    [JsonProperty("crownWidthMm")] public double? CrownWidthMm { get; set; }
+    [JsonProperty("longLegMm")] public double? LongLegMm { get; set; }
+    [JsonProperty("shortLegMm")] public double? ShortLegMm { get; set; }
+    [JsonProperty("bendRadiusMm")] public double? BendRadiusMm { get; set; }
     [JsonProperty("targetLayerId")] public string? TargetLayerId { get; set; }
     [JsonProperty("segments")] public List<ShapeSegment>? Segments { get; set; }
   }

@@ -13,6 +13,7 @@ namespace NMKRevit
     private const string TabName = "NMK";
     private const string PrintPanelName = "Print";
     private const string FloorPanelName = "Floor";
+    private const string TagsPanelName = "Tags";
     private const string FilledRegionsTabName = "Filled Regions";
     private static string _assemblyFolder = string.Empty;
 #if NETCOREAPP
@@ -76,6 +77,16 @@ namespace NMKRevit
         "NMKRevit.FloorTool.Commands.FloorToolCommand")
       {
         ToolTip = "Analyze, split, and join Floors."
+      });
+
+      RibbonPanel tagsPanel = application.CreateRibbonPanel(TabName, TagsPanelName);
+      tagsPanel.AddItem(new PushButtonData(
+        "NMKTagsTool",
+        "Tags\nTool",
+        assemblyPath,
+        "NMKRevit.Tags.Commands.TagsToolCommand")
+      {
+        ToolTip = "Check and create tags for Columns, Floors, and Walls in the active view."
       });
 
       try
