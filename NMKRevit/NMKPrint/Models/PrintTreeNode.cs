@@ -12,6 +12,7 @@ namespace NMKRevit.NMKPrint.Models
     public PrintTreeNode? Parent { get; private set; }
     public PrintItem? Item { get; init; }
     public bool IsItem => Item != null;
+    public bool CanUseThreeState => !IsItem;
     public int TotalCount => IsItem ? 1 : Items.Sum(x => x.TotalCount);
     public int CheckedCount => IsItem ? (IsChecked == true ? 1 : 0) : Items.Sum(x => x.CheckedCount);
     public string DisplayName => IsItem ? Name : $"{Name}  [{CheckedCount}/{TotalCount}]";
@@ -45,6 +46,12 @@ namespace NMKRevit.NMKPrint.Models
 
       if (IsItem)
       {
+        if (value == null)
+        {
+          SetCheckedSilently(false);
+          value = false;
+        }
+
         if (Item != null)
         {
           Item.IsSelected = value == true;
@@ -53,9 +60,10 @@ namespace NMKRevit.NMKPrint.Models
         return;
       }
 
+      bool targetValue = value == true;
       foreach (PrintTreeNode child in Items)
       {
-        child.SetCheckedFromParent(value);
+        child.SetCheckedFromParent(targetValue);
       }
 
       UpdateCountsUp();
@@ -74,27 +82,34 @@ namespace NMKRevit.NMKPrint.Models
     {
       if (IsItem)
       {
+        SetCheckedSilently(Item?.IsSelected == true);
         Parent?.UpdateFromChildren();
         return;
       }
 
-      _suppressUpdate = true;
-      if (Items.All(x => x.IsChecked == true))
-      {
-        IsChecked = true;
-      }
-      else if (Items.All(x => x.IsChecked == false))
-      {
-        IsChecked = false;
-      }
-      else
-      {
-        IsChecked = null;
-      }
-      _suppressUpdate = false;
+      SetFolderStateFromChildren();
 
       UpdateCountsUp();
       Parent?.UpdateFromChildren();
+    }
+
+    public void SyncSelectionState()
+    {
+      if (IsItem)
+      {
+        SetCheckedSilently(Item?.IsSelected == true);
+      }
+      else
+      {
+        foreach (PrintTreeNode child in Items)
+        {
+          child.SyncSelectionState();
+        }
+
+        SetFolderStateFromChildren();
+      }
+
+      UpdateCountsUp();
     }
 
     private void SetCheckedFromParent(bool? value)
@@ -121,6 +136,28 @@ namespace NMKRevit.NMKPrint.Models
       UpdateCountsUp();
     }
 
+    private void SetCheckedSilently(bool? value)
+    {
+      _suppressUpdate = true;
+      IsChecked = value;
+      _suppressUpdate = false;
+    }
+
+    private void SetFolderStateFromChildren()
+    {
+      bool? state = null;
+      if (Items.Count > 0 && Items.All(x => x.IsChecked == true))
+      {
+        state = true;
+      }
+      else if (Items.All(x => x.IsChecked == false))
+      {
+        state = false;
+      }
+
+      SetCheckedSilently(state);
+    }
+
     private void UpdateCountsUp()
     {
       OnPropertyChanged(nameof(CheckedCount));
@@ -134,7 +171,9 @@ namespace NMKRevit.NMKPrint.Models
       bool hasKeyword = !string.IsNullOrWhiteSpace(keyword);
       bool selfMatch = !hasKeyword ||
         Name.IndexOf(keyword, System.StringComparison.OrdinalIgnoreCase) >= 0 ||
-        (Item?.Number.IndexOf(keyword, System.StringComparison.OrdinalIgnoreCase) >= 0) == true;
+        (Item?.Number.IndexOf(keyword, System.StringComparison.OrdinalIgnoreCase) >= 0) == true ||
+        (Item?.Revision.IndexOf(keyword, System.StringComparison.OrdinalIgnoreCase) >= 0) == true ||
+        (Item?.RevisionDate.IndexOf(keyword, System.StringComparison.OrdinalIgnoreCase) >= 0) == true;
 
       bool childMatch = false;
       foreach (PrintTreeNode child in Items)

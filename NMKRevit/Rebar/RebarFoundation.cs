@@ -559,7 +559,7 @@ namespace NMKRevit.Rebar
           token.Equals(first ? "firstLayer" : "lastLayer", StringComparison.OrdinalIgnoreCase) ||
           token.Equals(first ? "first" : "last", StringComparison.OrdinalIgnoreCase) ||
           token.Equals(first ? "$first" : "$last", StringComparison.OrdinalIgnoreCase))
-        return first ? layers[0].Id : layers[^1].Id;
+        return first ? layers[0].Id : layers[layers.Count - 1].Id;
       return token;
     }
 
@@ -920,6 +920,7 @@ namespace NMKRevit.Rebar
       BarTerminationSpec specification,
       string context = "Rebar")
     {
+#if D2026 || D2027
       using var terminations = new BarTerminationsData(document);
       if (specification.StartHook != null)
       {
@@ -933,6 +934,22 @@ namespace NMKRevit.Rebar
       }
       RevitRebar rebar = RevitRebar.CreateFromCurves(document, RebarStyle.Standard, barType, host, planeNormal, curves, terminations, true, true)
         ?? throw new InvalidOperationException($"{context}: Revit did not create the requested rebar shape.");
+#else
+      RevitRebar rebar = RevitRebar.CreateFromCurves(
+        document,
+        RebarStyle.Standard,
+        barType,
+        specification.StartHook,
+        specification.EndHook,
+        host,
+        planeNormal,
+        curves,
+        RebarHookOrientation.Right,
+        RebarHookOrientation.Right,
+        true,
+        true)
+        ?? throw new InvalidOperationException($"{context}: Revit did not create the requested rebar shape.");
+#endif
       TryShowUnobscured(document, rebar);
       return rebar;
     }
@@ -1007,7 +1024,7 @@ namespace NMKRevit.Rebar
             positions.Add(current);
           }
         }
-        if (includeEnd && end - positions[^1] > Tolerance) positions.Add(end);
+        if (includeEnd && end - positions[positions.Count - 1] > Tolerance) positions.Add(end);
         return positions;
       }
       if (spacingsMm?.Count > 0)
@@ -1020,7 +1037,7 @@ namespace NMKRevit.Rebar
           if (current > end + Tolerance) throw new InvalidOperationException("The sum of spacingsMm exceeds the distribution end.");
           positions.Add(current);
         }
-        if (includeEnd && end - positions[^1] > Tolerance) positions.Add(end);
+        if (includeEnd && end - positions[positions.Count - 1] > Tolerance) positions.Add(end);
         return positions;
       }
       double spacingInternal = Mm(spacingMm);
@@ -1030,7 +1047,7 @@ namespace NMKRevit.Rebar
       {
         var positions = new List<double>();
         for (double value = start; value <= end + Tolerance; value += spacingInternal) positions.Add(Math.Min(value, end));
-        if (includeEnd && end - positions[^1] > Tolerance) positions.Add(end);
+        if (includeEnd && end - positions[positions.Count - 1] > Tolerance) positions.Add(end);
         return positions;
       }
       if (!layout.Equals("maximumSpacingEven", StringComparison.OrdinalIgnoreCase))
@@ -1191,15 +1208,25 @@ namespace NMKRevit.Rebar
 
     private readonly struct BarTerminationSpec
     {
+#if D2026 || D2027
       public static BarTerminationSpec None => new(null, null, RebarTerminationOrientation.Right, RebarTerminationOrientation.Right);
       public BarTerminationSpec(RebarHookType? startHook, RebarHookType? endHook, RebarTerminationOrientation startOrientation, RebarTerminationOrientation endOrientation)
       {
         StartHook = startHook; EndHook = endHook; StartOrientation = startOrientation; EndOrientation = endOrientation;
       }
+#else
+      public static BarTerminationSpec None => new(null, null);
+      public BarTerminationSpec(RebarHookType? startHook, RebarHookType? endHook)
+      {
+        StartHook = startHook; EndHook = endHook;
+      }
+#endif
       public RebarHookType? StartHook { get; }
       public RebarHookType? EndHook { get; }
+#if D2026 || D2027
       public RebarTerminationOrientation StartOrientation { get; }
       public RebarTerminationOrientation EndOrientation { get; }
+#endif
     }
 
     private sealed class LayerLayout

@@ -33,9 +33,15 @@ namespace NMKRevit.NMKPrint.ViewModels
     {
       DwgExportSetups.Clear();
       DwgExportSetups.Add(string.Empty);
-      foreach (string name in DWGExportOptions.GetPredefinedSetupNames(doc).OrderBy(x => x))
+      var names = DWGExportOptions.GetPredefinedSetupNames(doc).OrderBy(x => x).ToList();
+      foreach (string name in names)
       {
         DwgExportSetups.Add(name);
+      }
+
+      if (names.Count > 0 && (string.IsNullOrWhiteSpace(Settings.DwgExportSetup) || !names.Contains(Settings.DwgExportSetup)))
+      {
+        Settings.DwgExportSetup = names[0];
       }
     }
   }

@@ -137,7 +137,7 @@
                   Height="24"
                   VerticalAlignment="Center"
                   VerticalContentAlignment="Center"
-                  IsThreeState="True"
+                  IsThreeState="{Binding CanUseThreeState}"
                   PreviewMouseLeftButtonDown="TreeCheckBox_PreviewMouseLeftButtonDown"
                   IsChecked="{Binding IsChecked, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                   Content="{Binding DisplayName}" />
@@ -192,7 +192,7 @@
             </Grid.ColumnDefinitions>
             <CheckBox Content="Use naming convention:" IsChecked="{Binding Settings.UseNamingConvention}" VerticalAlignment="Center" />
             <TextBox Grid.Column="1" Height="30" IsEnabled="{Binding Settings.UseNamingConvention}" Text="{Binding Settings.NamingDate, UpdateSourceTrigger=PropertyChanged}" TextAlignment="Center" />
-            <TextBox Grid.Column="2" Margin="8,0" Height="30" Text="-" TextAlignment="Center" IsEnabled="False" />
+            <TextBox Grid.Column="2" Margin="8,0" Height="30" Text="_" TextAlignment="Center" IsEnabled="False" />
             <TextBox Grid.Column="3" Height="30" IsEnabled="{Binding Settings.UseNamingConvention}" Text="{Binding Settings.NamingProjectCode, UpdateSourceTrigger=PropertyChanged}" TextAlignment="Center" />
             <TextBox Grid.Column="4" Margin="8,0" Height="30" Text="-" TextAlignment="Center" IsEnabled="False" />
             <TextBox Grid.Column="5" Height="30" IsEnabled="{Binding Settings.UseNamingConvention}" Text="{Binding Settings.NamingNode, UpdateSourceTrigger=PropertyChanged}" TextAlignment="Center" />

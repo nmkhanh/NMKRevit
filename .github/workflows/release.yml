@@ -55,7 +55,7 @@ jobs:
             "2024" = "NMKRevit/bin/Debug/2024/net48"
             "2025" = "NMKRevit/bin/Debug/2025/net80-windows"
             "2026" = "NMKRevit/bin/Debug/2026/net80-windows"
-            "2027" = "NMKRevit/bin/Debug/2027/net10.0-windows"
+            "2027" = "NMKRevit/bin/Debug/2027/net80-windows"
           }
 
           foreach ($version in $versions.Keys) {

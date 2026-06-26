@@ -134,10 +134,8 @@ namespace NMKRevit.NMKPrint.ViewModels
       await RevitTask.RunAsync(uiapp =>
       {
         Document doc = uiapp.ActiveUIDocument.Document;
-        if (string.IsNullOrWhiteSpace(Settings.NamingProjectCode))
-        {
-          Settings.NamingProjectCode = doc.ProjectInformation.BuildingName ?? string.Empty;
-        }
+        Settings.NamingDate = DateTime.Now.ToString("yyMMdd");
+        Settings.NamingProjectCode = doc.ProjectInformation.BuildingName ?? string.Empty;
 
         var sheets = _printItemService.GetSheets(doc);
         var views = _printItemService.GetViews(doc);
@@ -335,6 +333,8 @@ namespace NMKRevit.NMKPrint.ViewModels
 
       IsBusy = true;
       Logs.Clear();
+      int completed = 0;
+      int totalJobs = 0;
       try
       {
         List<PrintJob> jobs = new();
@@ -344,6 +344,7 @@ namespace NMKRevit.NMKPrint.ViewModels
           jobs = BuildJobs(doc, selected);
         });
 
+        totalJobs = jobs.Count;
         BeginPrintProgress(jobs.Count);
         await _printService.RunAsync(
           _uiapp,
@@ -354,21 +355,35 @@ namespace NMKRevit.NMKPrint.ViewModels
           {
             await Logs.UpdateJobAsync(job, level, message, path);
             await UpdatePreviewProgressAsync(job, level, message);
+            if (level == LogLevel.Done || level == LogLevel.Error)
+            {
+              completed++;
+              UpdatePrintProgress(completed, jobs.Count);
+            }
           },
           async (level, message, path) =>
           {
             await Logs.UpdateStageAsync("PDF:Combine", "PDF", "Combine", level, message, path);
             if (level == LogLevel.Printing)
             {
-              UpdatePrintStatus(message);
+              BeginIndeterminatePrintProgress(message);
+            }
+            else if (level == LogLevel.Done || level == LogLevel.Error)
+            {
+              EndIndeterminatePrintProgress(completed, jobs.Count);
             }
           });
       }
       finally
       {
         IsBusy = false;
-        IsPrintStatus = false;
         IsPrintProgressIndeterminate = false;
+        if (totalJobs > 0 && completed >= totalJobs)
+        {
+          PrintProgressValue = 100;
+          PrintStatus = $"{totalJobs} / {totalJobs} (100 %)";
+          IsPrintStatus = true;
+        }
       }
     }
 
@@ -426,22 +441,6 @@ namespace NMKRevit.NMKPrint.ViewModels
         : FileNameSanitizer.Sanitize(GetDefaultFileName(item));
     }
 
-    private string GetPreviewName(Document doc, PrintItem item, PrintFormat format)
-    {
-      if (Settings.CombinePdf && format == PrintFormat.PDF)
-      {
-        return GetItemName(item);
-      }
-
-      IReadOnlyList<NamingTemplateItem> template = format == PrintFormat.PDF
-        ? CustomName.AppliedPdfItems
-        : CustomName.AppliedDwgItems;
-
-      return HasCustomName(template)
-        ? _namingTemplateService.BuildName(doc, item, template)
-        : GetItemName(item);
-    }
-
     private string GetCombineFileName(IEnumerable<PrintItem> selected)
     {
       if (!string.IsNullOrWhiteSpace(Settings.EffectiveFileCombineName))
@@ -461,6 +460,29 @@ namespace NMKRevit.NMKPrint.ViewModels
     private static string GetItemName(PrintItem item)
     {
       return item.Name;
+    }
+
+    private string GetPreviewName(Document doc, PrintItem item, PrintFormat format)
+    {
+      if (Settings.CombinePdf && format == PrintFormat.PDF)
+      {
+        return item.Name;
+      }
+
+      IReadOnlyList<NamingTemplateItem> template = format == PrintFormat.PDF
+        ? CustomName.AppliedPdfItems
+        : CustomName.AppliedDwgItems;
+
+      return HasCustomName(template)
+        ? _namingTemplateService.BuildName(doc, item, template)
+        : item.Name;
+    }
+
+    private static string GetPreviewDisplayName(PrintItem item)
+    {
+      return item.IsSheet && !string.IsNullOrWhiteSpace(item.Number)
+        ? $"[{item.Number}] - {item.Name}"
+        : item.Name;
     }
 
     private static string GetDefaultFileName(PrintItem item)
@@ -483,7 +505,7 @@ namespace NMKRevit.NMKPrint.ViewModels
             Index = pdfIndex++,
             Key = GetPreviewKey(PrintFormat.PDF, item),
             Number = item.Number,
-            Name = item.IsSheet ? $"[{item.Number}] - {item.Name}" : item.Name,
+            Name = GetPreviewDisplayName(item),
             Revision = item.Revision,
             RevisionDate = item.RevisionDate,
             Size = item.Size,
@@ -502,7 +524,7 @@ namespace NMKRevit.NMKPrint.ViewModels
             Index = 0,
             Key = GetPreviewKey(PrintFormat.DWG, item),
             Number = item.Number,
-            Name = item.Name,
+            Name = GetPreviewDisplayName(item),
             Revision = item.Revision,
             RevisionDate = item.RevisionDate,
             Size = item.Size,
@@ -551,15 +573,12 @@ namespace NMKRevit.NMKPrint.ViewModels
       {
         if (Settings.ExportPdf)
         {
-          string pdfName = Settings.CombinePdf
-            ? GetItemName(item)
-            : GetPreviewName(doc, item, PrintFormat.PDF);
           rows.Add(new PrintPreviewRow
           {
             Index = pdfIndex++,
             Key = GetPreviewKey(PrintFormat.PDF, item),
             Number = item.Number,
-            Name = pdfName,
+            Name = GetPreviewName(doc, item, PrintFormat.PDF),
             Revision = item.Revision,
             RevisionDate = item.RevisionDate,
             Size = item.Size,
@@ -603,8 +622,8 @@ namespace NMKRevit.NMKPrint.ViewModels
         CreateSeparateFiles = state.CreateSeparateFiles,
         CombinePdf = state.CombinePdf,
         UseNamingConvention = string.IsNullOrWhiteSpace(state.FileCombineName) ? true : state.UseNamingConvention,
-        NamingDate = string.IsNullOrWhiteSpace(state.NamingDate) ? DateTime.Now.ToString("yyMMdd") : state.NamingDate,
-        NamingProjectCode = state.NamingProjectCode,
+        NamingDate = DateTime.Now.ToString("yyMMdd"),
+        NamingProjectCode = string.Empty,
         NamingNode = string.IsNullOrWhiteSpace(state.NamingNode) ? "GA PLANS" : state.NamingNode,
         FileCombineName = state.FileCombineName,
         SplitByFormat = state.SplitByFormat,
@@ -619,19 +638,45 @@ namespace NMKRevit.NMKPrint.ViewModels
       OnUiThread(() =>
       {
         PrintProgressValue = 0;
-        PrintStatus = total == 0 ? "Printing..." : $"Printing {total} files...";
-        IsPrintProgressIndeterminate = true;
+        PrintStatus = $"0 / {total} (0 %)";
+        IsPrintProgressIndeterminate = false;
         IsPrintStatus = true;
       });
     }
 
-    private void UpdatePrintStatus(string message)
+    private void UpdatePrintProgress(int current, int total)
+    {
+      double progress = total == 0 ? 0 : Math.Round(current * 100.0 / total, 0);
+      OnUiThread(() =>
+      {
+        if (IsPrintProgressIndeterminate)
+        {
+          return;
+        }
+
+        PrintProgressValue = progress;
+        PrintStatus = $"{current} / {total} ({progress:0} %)";
+      });
+    }
+
+    private void BeginIndeterminatePrintProgress(string message)
     {
       OnUiThread(() =>
       {
         IsPrintProgressIndeterminate = true;
         IsPrintStatus = true;
         PrintStatus = message;
+      });
+    }
+
+    private void EndIndeterminatePrintProgress(int current, int total)
+    {
+      OnUiThread(() =>
+      {
+        IsPrintProgressIndeterminate = false;
+        double progress = total == 0 ? 0 : Math.Round(current * 100.0 / total, 0);
+        PrintProgressValue = progress;
+        PrintStatus = $"{current} / {total} ({progress:0} %)";
       });
     }
 
@@ -661,7 +706,7 @@ namespace NMKRevit.NMKPrint.ViewModels
         await AnimatePreviewProgressAsync(row, 100, 5);
         OnUiThread(() =>
         {
-          row.IsPrinting = false;
+          row.IsPrinting = true;
           row.ProgressValue = 100;
           row.ProgressBrush = ProgressBrush;
           row.ProgressText = "100";
@@ -673,7 +718,8 @@ namespace NMKRevit.NMKPrint.ViewModels
       {
         OnUiThread(() =>
         {
-          row.IsPrinting = false;
+          row.IsPrinting = true;
+          row.ProgressValue = 100;
           row.ProgressBrush = ErrorProgressBrush;
           row.ProgressText = "Error";
         });

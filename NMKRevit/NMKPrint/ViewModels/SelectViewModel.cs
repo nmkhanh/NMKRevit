@@ -145,7 +145,7 @@ namespace NMKRevit.NMKPrint.ViewModels
       IEnumerable<PrintItem> source = ShowSheets ? _allSheets : _allViews;
       if (!string.IsNullOrWhiteSpace(keyword))
       {
-        source = source.Where(x => x.DisplayName.IndexOf(keyword, StringComparison.OrdinalIgnoreCase) >= 0);
+        source = source.Where(x => MatchesSearch(x, keyword));
       }
 
       Items.Clear();
@@ -170,9 +170,7 @@ namespace NMKRevit.NMKPrint.ViewModels
       IEnumerable<PrintItem> source = ShowSheets ? _allSheets : _allViews;
       if (!string.IsNullOrWhiteSpace(keyword))
       {
-        source = source.Where(x =>
-          x.DisplayName.IndexOf(keyword, StringComparison.OrdinalIgnoreCase) >= 0 ||
-          x.Number.IndexOf(keyword, StringComparison.OrdinalIgnoreCase) >= 0);
+        source = source.Where(x => MatchesSearch(x, keyword));
       }
 
       Items.Clear();
@@ -237,10 +235,18 @@ namespace NMKRevit.NMKPrint.ViewModels
       SortTreeNodes(TreeItems);
       foreach (PrintTreeNode root in TreeItems)
       {
-        root.UpdateFromChildren();
+        root.SyncSelectionState();
       }
 
       _isRebuildingTree = false;
+    }
+
+    private static bool MatchesSearch(PrintItem item, string keyword)
+    {
+      return item.DisplayName.IndexOf(keyword, StringComparison.OrdinalIgnoreCase) >= 0 ||
+        item.Number.IndexOf(keyword, StringComparison.OrdinalIgnoreCase) >= 0 ||
+        item.Revision.IndexOf(keyword, StringComparison.OrdinalIgnoreCase) >= 0 ||
+        item.RevisionDate.IndexOf(keyword, StringComparison.OrdinalIgnoreCase) >= 0;
     }
 
     private static void SortTreeNodes(ObservableCollection<PrintTreeNode> nodes)

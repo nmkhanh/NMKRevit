@@ -34,7 +34,7 @@ namespace NMKRevit.NMKPrint.Models
     [ObservableProperty]
     private MediaBrush _progressBrush = MediaBrushes.Transparent;
 
-    public bool IsProgressBarVisible => IsPrinting && !string.Equals(ProgressText, "Error", System.StringComparison.OrdinalIgnoreCase);
+    public bool IsProgressBarVisible => IsPrinting || ProgressValue >= 100;
     public bool IsProgressTextVisible => !IsProgressBarVisible;
 
     public MediaBrush Foreground => Format == "DWG" ? MediaBrushes.SeaGreen : MediaBrushes.Black;
