@@ -116,10 +116,6 @@
 	    <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 	    <TargetPath>RebarFoundation.schema.json</TargetPath>
 	  </None>
-	  <None Update="Rebar\IMAGE_TO_REBAR_JSON.md">
-	    <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-	    <TargetPath>IMAGE_TO_REBAR_JSON.md</TargetPath>
-	  </None>
 	</ItemGroup>
 	<ItemGroup Condition="'$(RevitVersion)' == '2020' Or '$(RevitVersion)' == '2021'">
 	  <Compile Remove="FloorTool\**\*.cs" />

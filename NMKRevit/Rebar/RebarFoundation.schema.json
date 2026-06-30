@@ -1,261 +1,73 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "RebarFoundation.schema.json",
-  "title": "NMK RebarFoundation configuration",
-  "oneOf": [
-    { "$ref": "#/$defs/v1Config" },
-    { "$ref": "#/$defs/v2Config" }
-  ],
+  "title": "AI image/data to Revit rebar group",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "units", "distribution", "bars"],
+  "properties": {
+    "$schema": { "type": "string" },
+    "schemaVersion": { "const": 1 },
+    "units": { "const": "mm" },
+    "name": { "type": "string" },
+    "distribution": { "$ref": "#/$defs/distribution" },
+    "bars": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/bar" }
+    }
+  },
   "$defs": {
-    "v1Config": {
+    "distribution": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["schemaVersion", "units", "coordinateSystem", "sideCenterCoverMm", "layers", "hookBars"],
       "properties": {
-        "$schema": { "type": "string" },
-        "schemaVersion": { "const": 1 },
-        "units": { "const": "mm" },
-        "coordinateSystem": { "const": "selectedSolidLocalXYZ" },
-        "sideCenterCoverMm": { "type": "number", "minimum": 0 },
-        "layers": {
-          "type": "array",
-          "minItems": 1,
-          "items": { "$ref": "#/$defs/layer" }
+        "offsetsMm": {
+          "type": ["array", "null"],
+          "items": { "type": "number", "minimum": 0 }
         },
-        "hookBars": { "$ref": "#/$defs/hookBars" }
+        "spacingsMm": {
+          "type": ["array", "null"],
+          "items": { "type": "number", "exclusiveMinimum": 0 }
+        },
+        "count": { "type": ["integer", "null"], "minimum": 1 },
+        "spacingMm": { "type": ["number", "null"], "exclusiveMinimum": 0 }
       }
     },
-    "v2Config": {
+    "bar": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["schemaVersion", "units", "coordinateSystem", "barPieces"],
-      "properties": {
-        "$schema": { "type": "string" },
-        "schemaVersion": { "const": 2 },
-        "units": { "const": "mm" },
-        "coordinateSystem": {
-          "const": "selectedSolidLocalXYZ",
-          "description": "X is the selected solid's longest horizontal edge, Y is horizontal and perpendicular to X, and Z is global up."
-        },
-        "sideCenterCoverMm": { "type": "number", "minimum": 0, "default": 150 },
-        "barMarks": {
-          "type": "array",
-          "items": { "$ref": "#/$defs/barMark" }
-        },
-        "barPieces": {
-          "type": "array",
-          "minItems": 1,
-          "items": { "$ref": "#/$defs/barPiece" }
-        },
-        "reviewNotes": {
-          "type": "array",
-          "items": { "type": "string" }
-        }
-      }
-    },
-    "barMark": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["id", "diameterMm", "quantity"],
+      "required": ["id", "diameterMm", "shape"],
       "properties": {
         "id": { "type": "string", "minLength": 1 },
+        "mark": { "type": "string" },
+        "enabled": { "type": "boolean" },
         "diameterMm": { "type": "number", "exclusiveMinimum": 0 },
-        "quantity": { "type": "integer", "minimum": 0 },
-        "description": { "type": ["string", "null"] }
-      }
-    },
-    "barPiece": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["id", "diameterMm", "typeName", "sourceTypeName", "quantity", "shape", "placements"],
-      "properties": {
-        "id": { "type": "string", "minLength": 1 },
-        "parentMark": { "type": ["string", "null"] },
-        "enabled": { "type": "boolean", "default": true },
-        "diameterMm": { "type": "number", "exclusiveMinimum": 0 },
-        "typeName": { "type": "string", "minLength": 1 },
-        "sourceTypeName": { "type": "string", "pattern": "^CSS[0-9]+(\\.[0-9]+)?$" },
-        "quantity": { "type": "integer", "minimum": 0 },
-        "shape": { "$ref": "#/$defs/shape" },
-        "placements": {
-          "type": "array",
-          "minItems": 1,
-          "items": { "$ref": "#/$defs/piecePlacement" }
-        },
-        "metadata": {
-          "type": "object",
-          "additionalProperties": { "type": "string" }
-        }
-      }
-    },
-    "piecePlacement": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["direction", "z"],
-      "properties": {
-        "id": { "type": ["string", "null"] },
-        "plane": { "enum": ["horizontal", "sideFace", "edge"], "default": "horizontal" },
-        "direction": { "enum": ["X", "Y"] },
-        "z": { "$ref": "#/$defs/placementZ" },
-        "lineStartOffsetMm": { "type": ["number", "null"], "minimum": 0 },
-        "lineEndOffsetMm": { "type": ["number", "null"], "minimum": 0 },
+        "typeName": { "type": ["string", "null"] },
+        "side": { "enum": ["auto", "left", "right", null] },
         "distribution": { "oneOf": [{ "$ref": "#/$defs/distribution" }, { "type": "null" }] },
-        "secondaryDistribution": { "oneOf": [{ "$ref": "#/$defs/distribution" }, { "type": "null" }] }
-      }
-    },
-    "placementZ": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["reference", "offsetMm"],
-      "properties": {
-        "reference": { "enum": ["topFace", "bottomFace", "absoluteFromBottom", "absoluteFromTop"] },
-        "offsetMm": { "type": "number", "minimum": 0 }
-      }
-    },
-    "layer": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["id", "diameterMm", "typeName", "direction", "position", "distribution", "shape"],
-      "properties": {
-        "id": { "type": "string", "minLength": 1 },
-        "diameterMm": { "type": "number", "exclusiveMinimum": 0 },
-        "typeName": { "type": "string", "minLength": 1 },
-        "direction": { "enum": ["X", "Y"] },
-        "position": { "$ref": "#/$defs/position" },
-        "sideCenterCoverMm": { "type": ["number", "null"], "minimum": 0 },
-        "distribution": { "$ref": "#/$defs/distribution" },
         "shape": { "$ref": "#/$defs/shape" }
-      }
-    },
-    "position": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["reference", "offsetMm", "clearanceMm"],
-      "properties": {
-        "reference": { "enum": ["topFace", "bottomFace", "aboveLayer", "belowLayer"] },
-        "layerId": { "type": ["string", "null"] },
-        "offsetMm": { "type": "number", "minimum": 0 },
-        "clearanceMm": { "type": "number", "minimum": 0 }
       }
     },
     "shape": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["kind"],
+      "required": ["points"],
       "properties": {
-        "kind": { "enum": ["auto", "straight", "straightNativeHooks", "uToLayer", "hairpinWrapLayer", "polycurve", "straightWithNativeHooks", "uBar", "hairpin", "piecewiseLine"] },
-        "hookTypeName": { "type": ["string", "null"] },
-        "startHookTypeName": { "type": ["string", "null"] },
-        "endHookTypeName": { "type": ["string", "null"] },
-        "hookAngleDegrees": { "type": "number", "minimum": 0, "maximum": 180 },
-        "hookStartMm": { "type": ["number", "null"], "minimum": 0 },
-        "hookEndMm": { "type": ["number", "null"], "minimum": 0 },
-        "startHookOrientation": { "enum": ["Left", "Right", "left", "right", null] },
-        "endHookOrientation": { "enum": ["Left", "Right", "left", "right", null] },
-        "hookLegDirection": { "enum": ["up", "down", "Up", "Down", null] },
-        "fallbackToLine": { "type": "boolean", "default": true },
-        "straightLengthMm": { "type": ["number", "null"], "exclusiveMinimum": 0 },
-        "legLengthMm": { "type": ["number", "null"], "exclusiveMinimum": 0 },
-        "crownWidthMm": { "type": ["number", "null"], "exclusiveMinimum": 0 },
-        "longLegMm": { "type": ["number", "null"], "exclusiveMinimum": 0 },
-        "shortLegMm": { "type": ["number", "null"], "exclusiveMinimum": 0 },
-        "bendRadiusMm": { "type": ["number", "null"], "minimum": 0 },
-        "targetLayerId": { "type": ["string", "null"], "minLength": 1 },
-        "segments": {
-          "type": ["array", "null"],
-          "items": { "$ref": "#/$defs/segment" }
+        "points": {
+          "type": "array",
+          "minItems": 2,
+          "items": { "$ref": "#/$defs/point" }
         }
-      }
-    },
-    "segment": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["type", "start", "end"],
-      "properties": {
-        "type": { "const": "line" },
-        "start": { "$ref": "#/$defs/point" },
-        "end": { "$ref": "#/$defs/point" }
       }
     },
     "point": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["uMm", "zMm"],
+      "required": ["xMm", "zMm"],
       "properties": {
-        "uMm": { "type": "number" },
+        "xMm": { "type": "number" },
         "zMm": { "type": "number" }
-      }
-    },
-    "distribution": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["layout", "edgeStartMm", "edgeEndMm", "maximumSpacingMm", "includeEnd"],
-      "properties": {
-        "layout": { "enum": ["fixedSpacingWithRemainderAtEnd", "maximumSpacingEven", "autoFromL2Staggered"] },
-        "edgeStartMm": { "type": "number", "minimum": 0 },
-        "edgeEndMm": { "type": "number", "minimum": 0 },
-        "maximumSpacingMm": { "type": "number", "exclusiveMinimum": 0 },
-        "offsetsMm": { "type": ["array", "null"], "items": { "type": "number", "minimum": 0 } },
-        "spacingPattern": { "type": ["array", "null"], "items": { "$ref": "#/$defs/spacingPatternItem" } },
-        "spacingsMm": { "type": ["array", "null"], "items": { "type": "number", "exclusiveMinimum": 0 } },
-        "includeEnd": { "type": "boolean" },
-        "zones": { "type": ["array", "null"], "items": { "$ref": "#/$defs/zone" } }
-      }
-    },
-    "spacingPatternItem": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["count", "spacingMm"],
-      "properties": {
-        "count": { "type": "integer", "minimum": 1 },
-        "spacingMm": { "type": "number", "exclusiveMinimum": 0 }
-      }
-    },
-    "zone": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["startOffsetMm", "endOffsetMm", "layout", "maximumSpacingMm", "includeEnd"],
-      "properties": {
-        "startOffsetMm": { "type": "number", "minimum": 0 },
-        "endOffsetMm": { "type": "number", "minimum": 0 },
-        "layout": { "enum": ["fixedSpacingWithRemainderAtEnd", "maximumSpacingEven"] },
-        "maximumSpacingMm": { "type": "number", "exclusiveMinimum": 0 },
-        "offsetsMm": { "type": ["array", "null"], "items": { "type": "number", "minimum": 0 } },
-        "spacingPattern": { "type": ["array", "null"], "items": { "$ref": "#/$defs/spacingPatternItem" } },
-        "spacingsMm": { "type": ["array", "null"], "items": { "type": "number", "exclusiveMinimum": 0 } },
-        "includeEnd": { "type": "boolean" }
-      }
-    },
-    "hookBars": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["enabled", "diameterMm", "typeName", "wrapLayerId", "longLegEnd", "wrapClearanceMm", "longitudinalDistribution", "shape"],
-      "properties": {
-        "enabled": { "type": "boolean" },
-        "diameterMm": { "type": "number", "exclusiveMinimum": 0 },
-        "typeName": { "type": "string", "minLength": 1 },
-        "wrapLayerId": { "type": "string", "minLength": 1 },
-        "longLegEnd": { "$ref": "#/$defs/longLegEnd" },
-        "hookTypeName": { "type": ["string", "null"] },
-        "wrapClearanceMm": { "type": "number", "minimum": 0 },
-        "shortLegLengthMm": { "type": ["number", "null"], "exclusiveMinimum": 0 },
-        "defaultSpacingMultiplier": { "type": "number", "exclusiveMinimum": 0 },
-        "defaultSkipL2BarsAtEdges": { "type": "integer", "minimum": 0 },
-        "defaultStaggerRows": { "type": "boolean" },
-        "defaultLongitudinalShiftMm": { "type": "number" },
-        "rowDistribution": { "oneOf": [{ "$ref": "#/$defs/distribution" }, { "type": "null" }] },
-        "longitudinalDistribution": { "$ref": "#/$defs/distribution" },
-        "shape": { "$ref": "#/$defs/shape" }
-      }
-    },
-    "longLegEnd": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["reference", "layerId", "offsetMm"],
-      "properties": {
-        "reference": { "const": "bottomOfLayer" },
-        "layerId": { "type": "string", "minLength": 1 },
-        "offsetMm": { "type": "number", "minimum": 0 }
       }
     }
   }

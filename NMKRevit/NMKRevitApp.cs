@@ -14,6 +14,7 @@ namespace NMKRevit
     private const string PrintPanelName = "Print";
     private const string FloorPanelName = "Floor";
     private const string TagsPanelName = "Tags";
+    private const string RebarPanelName = "Rebar";
     private const string FilledRegionsTabName = "Filled Regions";
     private static string _assemblyFolder = string.Empty;
 #if NETCOREAPP
@@ -87,6 +88,16 @@ namespace NMKRevit
         "NMKRevit.Tags.Commands.TagsToolCommand")
       {
         ToolTip = "Check and create tags for Columns, Floors, and Walls in the active view."
+      });
+
+      RibbonPanel rebarPanel = application.CreateRibbonPanel(TabName, RebarPanelName);
+      rebarPanel.AddItem(new PushButtonData(
+        "NMKAIRebar",
+        "AI\nRebar",
+        assemblyPath,
+        "NMKRevit.Rebar.Commands.RebarFoundationCommand")
+      {
+        ToolTip = "Create rebar from AI-generated JSON by picking a face and distribution direction."
       });
 
       try
