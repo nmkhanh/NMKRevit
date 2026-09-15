@@ -1,0 +1,111 @@
+<UserControl
+  x:Class="NMKAcad.Views.WblockView"
+  xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+  xmlns:icon="clr-namespace:Material.Icons.WPF;assembly=Material.Icons.WPF">
+  <UserControl.Resources>
+    <ResourceDictionary>
+      <ResourceDictionary.MergedDictionaries>
+        <ResourceDictionary Source="pack://application:,,,/NMKAcad;component/Views/NmkTheme.xaml" />
+      </ResourceDictionary.MergedDictionaries>
+    </ResourceDictionary>
+  </UserControl.Resources>
+
+  <Grid Background="{StaticResource PageBackgroundBrush}">
+    <Border
+      Margin="8"
+      Padding="12"
+      Background="{StaticResource PanelBrush}"
+      BorderBrush="{StaticResource BorderBrush}"
+      BorderThickness="1"
+      CornerRadius="8">
+      <Grid>
+        <Grid.RowDefinitions>
+          <RowDefinition Height="Auto" />
+          <RowDefinition Height="Auto" />
+          <RowDefinition Height="Auto" />
+          <RowDefinition Height="Auto" />
+          <RowDefinition Height="Auto" />
+          <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <StackPanel Grid.Row="0" Margin="0,0,0,12">
+          <TextBlock FontSize="16" FontWeight="SemiBold" Text="Wblock" />
+          <TextBlock
+            Margin="0,4,0,0"
+            Foreground="{StaticResource MutedTextBrush}"
+            TextWrapping="Wrap"
+            Text="{Binding CurrentDrawing, StringFormat=Drawing: {0}}" />
+        </StackPanel>
+
+        <Grid Grid.Row="1" Margin="0,0,0,12">
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="Auto" />
+          </Grid.ColumnDefinitions>
+          <TextBox Text="{Binding SaveFolder, UpdateSourceTrigger=PropertyChanged}" />
+          <Button
+            Grid.Column="1"
+            MinWidth="100"
+            Margin="8,0,0,0"
+            Command="{Binding BrowseFolderCommand}">
+            <StackPanel Orientation="Horizontal">
+              <icon:MaterialIcon
+                Width="16"
+                Height="16"
+                Margin="0,0,6,0"
+                Kind="FolderOutline"
+                Foreground="White" />
+              <TextBlock VerticalAlignment="Center" Foreground="White" Text="Browse" />
+            </StackPanel>
+          </Button>
+        </Grid>
+
+        <StackPanel Grid.Row="2" Margin="0,0,0,8">
+          <StackPanel Margin="0,0,0,8" HorizontalAlignment="Left">
+            <TextBlock Margin="0,0,0,4" Foreground="{StaticResource MutedTextBrush}" Text="Prefix" />
+            <TextBox Width="300" HorizontalAlignment="Left" Text="{Binding Prefix, UpdateSourceTrigger=PropertyChanged}" />
+          </StackPanel>
+          <StackPanel Margin="0,0,0,8" HorizontalAlignment="Left">
+            <TextBlock Margin="0,0,0,4" Foreground="{StaticResource MutedTextBrush}" Text="Main" />
+            <TextBox Width="300" HorizontalAlignment="Left" Text="{Binding Main, UpdateSourceTrigger=PropertyChanged}" />
+          </StackPanel>
+          <StackPanel HorizontalAlignment="Left">
+            <TextBlock Margin="0,0,0,4" Foreground="{StaticResource MutedTextBrush}" Text="Suffix" />
+            <TextBox Width="300" HorizontalAlignment="Left" Text="{Binding Suffix, UpdateSourceTrigger=PropertyChanged}" />
+          </StackPanel>
+        </StackPanel>
+
+        <TextBlock
+          Grid.Row="3"
+          Margin="0,0,0,12"
+          FontWeight="SemiBold"
+          TextWrapping="Wrap"
+          Text="{Binding CombinedName, StringFormat=File: {0}.dwg}" />
+
+        <Button
+          Grid.Row="4"
+          MinHeight="36"
+          Margin="0,0,0,12"
+          HorizontalAlignment="Left"
+          MinWidth="160"
+          Command="{Binding WblockCommand}">
+          <StackPanel Orientation="Horizontal">
+            <icon:MaterialIcon
+              Width="18"
+              Height="18"
+              Margin="0,0,8,0"
+              Kind="Export"
+              Foreground="White" />
+            <TextBlock VerticalAlignment="Center" Foreground="White" Text="Wblock" />
+          </StackPanel>
+        </Button>
+
+        <TextBox
+          Grid.Row="5"
+          Style="{StaticResource StatusTextBoxStyle}"
+          Text="{Binding Status, Mode=OneWay}" />
+      </Grid>
+    </Border>
+  </Grid>
+</UserControl>

@@ -1,0 +1,109 @@
+<Project Sdk="Microsoft.NET.Sdk">
+	<PropertyGroup>
+		<OutputType>Library</OutputType>
+		<XamlDebuggingInformation>True</XamlDebuggingInformation>
+		<UseWPF>true</UseWPF>
+		<UseWindowsForms>true</UseWindowsForms>
+		<LangVersion>latest</LangVersion>
+		<Nullable>enable</Nullable>
+		<ImplicitUsings>true</ImplicitUsings>
+		<EnableDynamicLoading>true</EnableDynamicLoading>
+		<Configurations>Debug;Release;D2022;D2026;D2027;R2022;R2026;R2027</Configurations>
+		<Platforms>AnyCPU</Platforms>
+		<RootNamespace>NMKRebar</RootNamespace>
+		<AssemblyName>NMKRebar</AssemblyName>
+	</PropertyGroup>
+	<Choose>
+		<When Condition="$(Configuration.Contains('22'))">
+			<PropertyGroup>
+				<DefineConstants>R22</DefineConstants>
+				<RevitVersion>2022</RevitVersion>
+				<TargetFramework>net48</TargetFramework>
+			</PropertyGroup>
+		</When>
+		<When Condition="$(Configuration.Contains('27'))">
+			<PropertyGroup>
+				<DefineConstants>R27</DefineConstants>
+				<RevitVersion>2027</RevitVersion>
+				<RevitReferenceVersion>2026</RevitReferenceVersion>
+				<TargetFramework>net8.0-windows</TargetFramework>
+			</PropertyGroup>
+		</When>
+		<When Condition="$(Configuration.Contains('26'))">
+			<PropertyGroup>
+				<DefineConstants>R26</DefineConstants>
+				<RevitVersion>2026</RevitVersion>
+				<TargetFramework>net8.0-windows</TargetFramework>
+			</PropertyGroup>
+		</When>
+		<Otherwise>
+			<PropertyGroup>
+				<DefineConstants>R26</DefineConstants>
+				<RevitVersion>2026</RevitVersion>
+				<TargetFramework>net8.0-windows</TargetFramework>
+			</PropertyGroup>
+		</Otherwise>
+	</Choose>
+	<PropertyGroup>
+		<RevitReferenceVersion Condition="'$(RevitReferenceVersion)' == ''">$(RevitVersion)</RevitReferenceVersion>
+	</PropertyGroup>
+	<PropertyGroup Condition="$(Configuration.Contains('D')) Or $(Configuration) == 'Debug'">
+		<PlatformTarget>AnyCPU</PlatformTarget>
+		<DebugSymbols>true</DebugSymbols>
+		<DebugType>full</DebugType>
+		<Optimize>false</Optimize>
+		<OutputPath>bin\Debug\$(RevitVersion)</OutputPath>
+		<DefineConstants>DEBUG;TRACE;D$(RevitVersion)</DefineConstants>
+		<ErrorReport>prompt</ErrorReport>
+		<WarningLevel>4</WarningLevel>
+	</PropertyGroup>
+	<PropertyGroup Condition="$(Configuration.Contains('R')) Or $(Configuration) == 'Release'">
+		<PlatformTarget>AnyCPU</PlatformTarget>
+		<OutputPath>bin\Release\$(RevitVersion)</OutputPath>
+		<DefineConstants>TRACE;R$(RevitVersion)</DefineConstants>
+		<ErrorReport>prompt</ErrorReport>
+		<WarningLevel>4</WarningLevel>
+	</PropertyGroup>
+	<ItemGroup>
+		<PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0" />
+		<PackageReference Include="Material.Icons" Version="2.4.1" />
+		<PackageReference Include="Material.Icons.WPF" Version="2.4.1" />
+		<PackageReference Include="Microsoft.Xaml.Behaviors.Wpf" Version="1.1.135" />
+		<PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+		<PackageReference Include="Nice3point.Revit.Api.AdWindows" Version="$(RevitReferenceVersion).0.*" />
+		<PackageReference Include="Nice3point.Revit.Api.RevitAPI" Version="$(RevitReferenceVersion).0.*" />
+		<PackageReference Include="Nice3point.Revit.Api.RevitAPIUI" Version="$(RevitReferenceVersion).0.*" />
+		<PackageReference Include="Revit.Async" Version="2.1.1" />
+		<PackageReference Include="System.Configuration.ConfigurationManager" Version="8.0.1" />
+	</ItemGroup>
+	<ItemGroup>
+		<None Update="Resources\TypeShape.csv">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+			<TargetPath>TypeShape.csv</TargetPath>
+		</None>
+		<None Update="Resources\TypeData.csv">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+			<TargetPath>TypeData.csv</TargetPath>
+		</None>
+		<None Update="NMKRebar.addin">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</None>
+	</ItemGroup>
+	<PropertyGroup>
+		<StartAction>Program</StartAction>
+		<StartProgram>C:\Program Files\Autodesk\Revit $(RevitVersion)\Revit.exe</StartProgram>
+		<PlatformTarget>x64</PlatformTarget>
+	</PropertyGroup>
+	<!--Target Name="CopyToRevitAddins" AfterTargets="Build" Condition="'$(SkipCopyToRevitAddins)' != 'true'">
+		<PropertyGroup>
+			<AddinsRoot>$(AppData)\Autodesk\Revit\Addins\$(RevitVersion)</AddinsRoot>
+			<AddinPayloadDir>$(AddinsRoot)\NMKRebar</AddinPayloadDir>
+		</PropertyGroup>
+		<MakeDir Directories="$(AddinPayloadDir)" />
+		<ItemGroup>
+			<PayloadFiles Include="$(TargetDir)**\*.*" />
+		</ItemGroup>
+		<Copy SourceFiles="@(PayloadFiles)" DestinationFolder="$(AddinPayloadDir)\%(RecursiveDir)" SkipUnchangedFiles="true" />
+		<Copy SourceFiles="$(ProjectDir)NMKRebar.addin" DestinationFolder="$(AddinsRoot)" SkipUnchangedFiles="true" />
+	</Target>-->
+</Project>

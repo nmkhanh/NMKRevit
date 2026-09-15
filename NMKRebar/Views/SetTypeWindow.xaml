@@ -1,0 +1,698 @@
+<Window
+  x:Class="NMKRebar.Views.SetTypeWindow"
+  xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+  xmlns:icon="clr-namespace:Material.Icons.WPF;assembly=Material.Icons.WPF"
+  Title="NMK Rebar — Set Type"
+  Width="800"
+  Height="920"
+  MinHeight="760"
+  WindowStartupLocation="CenterOwner">
+  <Window.Resources>
+    <ResourceDictionary>
+      <ResourceDictionary.MergedDictionaries>
+        <ResourceDictionary Source="pack://application:,,,/NMKRebar;component/Views/NmkTheme.xaml" />
+      </ResourceDictionary.MergedDictionaries>
+    </ResourceDictionary>
+  </Window.Resources>
+
+  <Grid Background="{StaticResource PageBackgroundBrush}" Margin="12">
+    <Grid.RowDefinitions>
+      <RowDefinition Height="Auto" />
+      <RowDefinition Height="*" />
+      <RowDefinition Height="Auto" />
+    </Grid.RowDefinitions>
+
+    <Grid Margin="0,0,0,10">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="Auto" />
+        <ColumnDefinition Width="*" />
+        <ColumnDefinition Width="Auto" />
+      </Grid.ColumnDefinitions>
+      <TextBlock
+        VerticalAlignment="Center"
+        FontSize="16"
+        FontWeight="SemiBold"
+        Text="Path" />
+      <TextBox
+        Grid.Column="1"
+        Margin="10,0,8,0"
+        Text="{Binding DataFolder, UpdateSourceTrigger=PropertyChanged}" />
+      <Button
+        Grid.Column="2"
+        Width="100"
+        MinWidth="100"
+        Command="{Binding BrowseFolderCommand}">
+        <icon:MaterialIcon
+          Width="18"
+          Height="18"
+          Kind="DotsHorizontal"
+          Foreground="White" />
+      </Button>
+    </Grid>
+
+    <Grid Grid.Row="1">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="220" />
+        <ColumnDefinition Width="10" />
+        <ColumnDefinition Width="300" />
+        <ColumnDefinition Width="10" />
+        <ColumnDefinition Width="*" />
+      </Grid.ColumnDefinitions>
+
+      <Border
+        Background="{StaticResource PanelBrush}"
+        BorderBrush="{StaticResource BorderBrush}"
+        BorderThickness="1"
+        CornerRadius="8"
+        Padding="8">
+        <Grid>
+          <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+          </Grid.RowDefinitions>
+          <TextBox
+            Margin="0,0,0,8"
+            ToolTip="Search type"
+            Text="{Binding TypeSearch, UpdateSourceTrigger=PropertyChanged}" />
+          <ListBox
+            Grid.Row="1"
+            BorderThickness="0"
+            ItemsSource="{Binding TypeItems}"
+            SelectedValue="{Binding SelectedTypeName}"
+            SelectedValuePath="TypeName">
+            <ListBox.ItemTemplate>
+              <DataTemplate>
+                <Grid Margin="0,2">
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                  </Grid.ColumnDefinitions>
+                  <TextBlock
+                    VerticalAlignment="Center"
+                    Text="{Binding TypeName}"
+                    TextTrimming="CharacterEllipsis"
+                    Foreground="{Binding NameBrush}" />
+                  <StackPanel
+                    Grid.Column="1"
+                    Margin="8,0,0,0"
+                    Orientation="Horizontal"
+                    VerticalAlignment="Center">
+                    <TextBlock
+                      Foreground="#FF7A00"
+                      Text="{Binding ExpectedQtyText}" />
+                    <TextBlock
+                      Margin="6,0,0,0"
+                      Foreground="#EC4899"
+                      Text="{Binding ActualQtyText}" />
+                  </StackPanel>
+                </Grid>
+              </DataTemplate>
+            </ListBox.ItemTemplate>
+          </ListBox>
+          <TextBlock
+            Grid.Row="2"
+            Margin="0,8,0,0"
+            FontWeight="SemiBold"
+            TextTrimming="CharacterEllipsis"
+            ToolTip="{Binding SelectedTypeName}"
+            Text="{Binding SelectedTypeName, TargetNullValue=(none)}" />
+          <Grid Grid.Row="3" Margin="0,8,0,0">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="*" />
+              <ColumnDefinition Width="8" />
+              <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <Button
+              HorizontalAlignment="Stretch"
+              Command="{Binding ReloadTypesCommand}"
+              Content="Reload Type" />
+            <Button
+              Grid.Column="2"
+              HorizontalAlignment="Stretch"
+              Command="{Binding CheckQuantitiesCommand}"
+              Content="Check" />
+          </Grid>
+          <StackPanel
+            Grid.Row="4"
+            Margin="0,8,0,0"
+            Orientation="Horizontal">
+            <Button
+              MinWidth="90"
+              Margin="0,0,8,0"
+              Command="{Binding SelectTypeCommand}"
+              Content="Select Type" />
+            <CheckBox
+              Margin="0,0,8,0"
+              VerticalAlignment="Center"
+              Content="Rebar"
+              IsChecked="{Binding SelectTypeRebar}" />
+            <CheckBox
+              VerticalAlignment="Center"
+              Content="Array"
+              IsChecked="{Binding SelectTypeArray}" />
+          </StackPanel>
+        </Grid>
+      </Border>
+
+      <Grid Grid.Column="2">
+        <Grid.RowDefinitions>
+          <RowDefinition Height="Auto" />
+          <RowDefinition Height="*" />
+          <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+        <Border
+          Background="{StaticResource PanelBrush}"
+          BorderBrush="{StaticResource BorderBrush}"
+          BorderThickness="1"
+          CornerRadius="8"
+          Padding="8">
+          <Grid>
+            <Grid.RowDefinitions>
+              <RowDefinition Height="Auto" />
+              <RowDefinition Height="Auto" />
+              <RowDefinition Height="Auto" />
+              <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+            <TextBlock
+              FontWeight="SemiBold"
+              Text="Dimensions" />
+            <Grid Grid.Row="1" Margin="0,8,0,6">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="6" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="2" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="2" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+              </Grid.ColumnDefinitions>
+              <CheckBox
+                VerticalAlignment="Center"
+                Content="Curve"
+                IsChecked="{Binding CurveRow.IsChecked, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}" />
+              <TextBox
+                Grid.Column="2"
+                Height="24"
+                ToolTip="Degrees"
+                Text="{Binding AngleDegrees, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}" />
+              <TextBlock
+                Grid.Column="3"
+                VerticalAlignment="Center"
+                Foreground="{StaticResource MutedTextBrush}"
+                Text="°" />
+              <TextBox
+                Grid.Column="5"
+                Height="24"
+                ToolTip="Minutes"
+                Text="{Binding AngleMinutes, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}" />
+              <TextBlock
+                Grid.Column="6"
+                VerticalAlignment="Center"
+                Foreground="{StaticResource MutedTextBrush}"
+                Text="'" />
+              <TextBox
+                Grid.Column="8"
+                Height="24"
+                ToolTip="Seconds"
+                Text="{Binding AngleSeconds, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}" />
+              <TextBlock
+                Grid.Column="9"
+                VerticalAlignment="Center"
+                Foreground="{StaticResource MutedTextBrush}"
+                Text="&quot;" />
+            </Grid>
+            <Grid Grid.Row="2" Margin="0,0,0,2">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="18" />
+                <ColumnDefinition Width="22" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="4" />
+                <ColumnDefinition Width="50" />
+                <ColumnDefinition Width="4" />
+                <ColumnDefinition Width="50" />
+              </Grid.ColumnDefinitions>
+              <TextBlock
+                Grid.Column="1"
+                VerticalAlignment="Center"
+                Foreground="{StaticResource MutedTextBrush}"
+                Text="V" />
+              <TextBlock
+                Grid.Column="2"
+                VerticalAlignment="Center"
+                Foreground="{StaticResource MutedTextBrush}"
+                Text="Angle" />
+              <TextBlock
+                Grid.Column="4"
+                VerticalAlignment="Center"
+                Foreground="{StaticResource MutedTextBrush}"
+                Text="Bending" />
+              <TextBlock
+                Grid.Column="6"
+                VerticalAlignment="Center"
+                Foreground="{StaticResource MutedTextBrush}"
+                Text="L" />
+            </Grid>
+            <ItemsControl
+              Grid.Row="3"
+              ItemsSource="{Binding DimensionRows}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                  <Grid Margin="0,2">
+                    <Grid.ColumnDefinitions>
+                      <ColumnDefinition Width="18" />
+                      <ColumnDefinition Width="22" />
+                      <ColumnDefinition Width="*" />
+                      <ColumnDefinition Width="4" />
+                      <ColumnDefinition Width="50" />
+                      <ColumnDefinition Width="4" />
+                      <ColumnDefinition Width="50" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock
+                      VerticalAlignment="Center"
+                      Foreground="{StaticResource MutedTextBrush}"
+                      Text="{Binding Index}" />
+                    <CheckBox
+                      Grid.Column="1"
+                      HorizontalAlignment="Center"
+                      VerticalAlignment="Center"
+                      IsChecked="{Binding Visible, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}" />
+                    <Grid Grid.Column="2">
+                      <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="2" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="2" />
+                        <ColumnDefinition Width="*" />
+                      </Grid.ColumnDefinitions>
+                      <TextBox
+                        Height="24"
+                        Padding="2,0"
+                        MinWidth="28"
+                        ToolTip="Degrees"
+                        Text="{Binding AngleDegrees, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}" />
+                      <TextBox
+                        Grid.Column="2"
+                        Height="24"
+                        Padding="2,0"
+                        MinWidth="28"
+                        ToolTip="Minutes"
+                        Text="{Binding AngleMinutes, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}" />
+                      <TextBox
+                        Grid.Column="4"
+                        Height="24"
+                        Padding="2,0"
+                        MinWidth="28"
+                        ToolTip="Seconds"
+                        Text="{Binding AngleSeconds, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}" />
+                    </Grid>
+                    <TextBox
+                      Grid.Column="4"
+                      Height="24"
+                      Padding="2,0"
+                      Text="{Binding Bending, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}" />
+                    <TextBox
+                      Grid.Column="6"
+                      Height="24"
+                      Padding="2,0"
+                      Text="{Binding L, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}" />
+                  </Grid>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </Grid>
+        </Border>
+        <Border
+          Grid.Row="1"
+          Margin="0,10,0,0"
+          Background="{StaticResource PanelBrush}"
+          BorderBrush="{StaticResource BorderBrush}"
+          BorderThickness="1"
+          CornerRadius="8"
+          Padding="6">
+          <Grid>
+            <Grid.RowDefinitions>
+              <RowDefinition Height="Auto" />
+              <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+            <Grid Margin="0,0,0,4">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="28" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="4" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="4" />
+                <ColumnDefinition Width="*" />
+              </Grid.ColumnDefinitions>
+              <TextBlock Foreground="{StaticResource MutedTextBrush}" Text="#" />
+              <TextBlock Grid.Column="1" Foreground="{StaticResource MutedTextBrush}" Text="X" />
+              <TextBlock Grid.Column="3" Foreground="{StaticResource MutedTextBrush}" Text="Y" />
+              <TextBlock Grid.Column="5" Foreground="{StaticResource MutedTextBrush}" Text="Z" />
+            </Grid>
+            <ScrollViewer
+              Grid.Row="1"
+              VerticalScrollBarVisibility="Auto">
+              <ItemsControl ItemsSource="{Binding ZRows}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate>
+                    <Grid Margin="0,2">
+                      <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="28" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="4" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="4" />
+                        <ColumnDefinition Width="*" />
+                      </Grid.ColumnDefinitions>
+                      <TextBlock
+                        VerticalAlignment="Center"
+                        Foreground="{StaticResource MutedTextBrush}"
+                        Text="{Binding Index}" />
+                      <TextBox
+                        Grid.Column="1"
+                        Height="24"
+                        Text="{Binding X, UpdateSourceTrigger=PropertyChanged}" />
+                      <TextBox
+                        Grid.Column="3"
+                        Height="24"
+                        Text="{Binding Y, UpdateSourceTrigger=PropertyChanged}" />
+                      <TextBox
+                        Grid.Column="5"
+                        Height="24"
+                        Text="{Binding Text, UpdateSourceTrigger=PropertyChanged}" />
+                    </Grid>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </ScrollViewer>
+          </Grid>
+        </Border>
+        <Grid Grid.Row="2" Margin="0,10,0,0">
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="8" />
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="8" />
+            <ColumnDefinition Width="*" />
+          </Grid.ColumnDefinitions>
+          <Button
+            HorizontalAlignment="Stretch"
+            Command="{Binding SaveShapeCommand}"
+            Content="SAVE" />
+          <Button
+            Grid.Column="2"
+            HorizontalAlignment="Stretch"
+            Command="{Binding SelectInstancesCommand}"
+            Content="SELECT" />
+          <Button
+            Grid.Column="4"
+            HorizontalAlignment="Stretch"
+            Command="{Binding SetZCommand}"
+            Content="SET" />
+        </Grid>
+      </Grid>
+      <StackPanel
+        Grid.Column="4">
+        <GroupBox Header="Create">
+          <StackPanel>
+            <StackPanel
+              Orientation="Horizontal"
+              Margin="0,0,0,8">
+              <CheckBox
+                VerticalAlignment="Center"
+                Content="All"
+                IsChecked="{Binding CreateAllFilteredTypes}" />
+            </StackPanel>
+            <StackPanel
+              Orientation="Horizontal"
+              Margin="0,0,0,8">
+              <Button
+                MinWidth="90"
+                Margin="0,0,8,0"
+                Command="{Binding SelectHostCommand}"
+                Content="Select Host" />
+              <TextBlock
+                Margin="12,0,0,0"
+                VerticalAlignment="Center"
+                MaxWidth="300"
+                TextTrimming="CharacterEllipsis"
+                ToolTip="{Binding RebarHostDisplayName}"
+                Text="{Binding RebarHostDisplayName}" />
+            </StackPanel>
+            <StackPanel
+              Orientation="Horizontal"
+              Margin="0,0,0,8">
+              <Button
+                MinWidth="90"
+                Margin="0,0,8,0"
+                Command="{Binding SelectArraysCommand}"
+                Content="SELECT" />
+              <CheckBox
+                VerticalAlignment="Center"
+                Content="Revert"
+                IsChecked="{Binding RevertVaries}" />
+            </StackPanel>
+            <StackPanel
+              Orientation="Horizontal"
+              Margin="0,0,0,8">
+              <TextBlock
+                VerticalAlignment="Center"
+                Margin="0,0,8,0"
+                Foreground="{StaticResource MutedTextBrush}"
+                Text="Line" />
+              <ComboBox
+                MinWidth="56"
+                IsEditable="False"
+                ItemsSource="{Binding VariesLineIndexOptions}"
+                SelectedItem="{Binding VariesLineIndex}" />
+              <CheckBox
+                Margin="12,0,0,0"
+                VerticalAlignment="Center"
+                Content="Middle"
+                IsChecked="{Binding VariesMiddle}" />
+            </StackPanel>
+            <StackPanel
+              Orientation="Horizontal"
+              Margin="0,0,0,8">
+              <CheckBox
+                Margin="0,0,0,0"
+                VerticalAlignment="Center"
+                Content="Sub bending"
+                IsChecked="{Binding SubtractBending}" />
+              <TextBlock
+                Margin="12,0,8,0"
+                VerticalAlignment="Center"
+                Foreground="{StaticResource MutedTextBrush}"
+                Text="Factor" />
+              <TextBox
+                MinWidth="48"
+                VerticalAlignment="Center"
+                Text="{Binding BendingFactor, UpdateSourceTrigger=PropertyChanged}" />
+            </StackPanel>
+            <StackPanel
+              Orientation="Horizontal"
+              Margin="0,0,0,8">
+              <Button
+                MinWidth="90"
+                Margin="0,0,8,0"
+                Command="{Binding CreateRebarCommand}"
+                Content="Create" />
+              <CheckBox
+                Margin="0,0,8,0"
+                VerticalAlignment="Center"
+                Content="Free Form"
+                IsChecked="{Binding CreateAsFreeForm}" />
+            </StackPanel>
+          </StackPanel>
+        </GroupBox>
+        <GroupBox Header="Support Rebar" Margin="0,10,0,0">
+          <StackPanel>
+            <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+              <CheckBox
+                VerticalAlignment="Center"
+                Margin="0,0,12,0"
+                Content="X"
+                IsChecked="{Binding AddXyToX}" />
+              <CheckBox
+                VerticalAlignment="Center"
+                Margin="0,0,12,0"
+                Content="Sole"
+                IsChecked="{Binding AddXySole}" />
+              <CheckBox
+                VerticalAlignment="Center"
+                Margin="0,0,12,0"
+                Content="Start"
+                IsChecked="{Binding AddXyStart}" />
+              <CheckBox
+                VerticalAlignment="Center"
+                Content="Block"
+                IsChecked="{Binding AddXyBlock}" />
+            </StackPanel>
+            <Button
+              HorizontalAlignment="Stretch"
+              Margin="0,0,0,8"
+              Command="{Binding AddXyDataCommand}"
+              Content="Add XYZ data" />
+            <Grid Margin="0,0,0,8">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="8" />
+                <ColumnDefinition Width="*" />
+              </Grid.ColumnDefinitions>
+              <Button
+                HorizontalAlignment="Stretch"
+                Command="{Binding RenameViewByCadCommand}"
+                Content="Rename" />
+              <Button
+                Grid.Column="2"
+                HorizontalAlignment="Stretch"
+                Command="{Binding GroupRebarByTypeCommand}"
+                Content="Group" />
+            </Grid>
+            <Grid Margin="0,0,0,8">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="8" />
+                <ColumnDefinition Width="*" />
+              </Grid.ColumnDefinitions>
+              <Button
+                HorizontalAlignment="Stretch"
+                Command="{Binding ToggleSiteRebarCommand}"
+                Content="Site / Rebar" />
+              <Button
+                Grid.Column="2"
+                HorizontalAlignment="Stretch"
+                Command="{Binding ShowAllCategoriesCommand}"
+                Content="Show All" />
+            </Grid>
+            <Grid Margin="0,0,0,8">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="8" />
+                <ColumnDefinition Width="Auto" />
+              </Grid.ColumnDefinitions>
+              <ComboBox
+                IsEditable="True"
+                IsTextSearchEnabled="True"
+                ItemsSource="{Binding SameShapeTypeNames}"
+                SelectedItem="{Binding SelectedSameShapeType}"
+                Text="{Binding SameShapeTypeText, UpdateSourceTrigger=LostFocus}" />
+              <Button
+                Grid.Column="2"
+                MinWidth="100"
+                Command="{Binding SameShapeCommand}"
+                Content="Same Shape" />
+            </Grid>
+            <Grid Margin="0,0,0,8">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="8" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="8" />
+                <ColumnDefinition Width="Auto" />
+              </Grid.ColumnDefinitions>
+              <TextBlock
+                VerticalAlignment="Center"
+                Margin="0,0,6,0"
+                Foreground="{StaticResource MutedTextBrush}"
+                Text="From" />
+              <TextBox
+                Grid.Column="1"
+                Text="{Binding ChangeTypeFrom, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+              <TextBlock
+                Grid.Column="3"
+                VerticalAlignment="Center"
+                Margin="0,0,6,0"
+                Foreground="{StaticResource MutedTextBrush}"
+                Text="To" />
+              <TextBox
+                Grid.Column="4"
+                Text="{Binding ChangeTypeTo, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+              <Button
+                Grid.Column="6"
+                MinWidth="80"
+                Command="{Binding ChangeArrayTypeCommand}"
+                Content="Change" />
+            </Grid>
+            <Grid>
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="8" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="8" />
+                <ColumnDefinition Width="Auto" />
+              </Grid.ColumnDefinitions>
+              <TextBlock
+                VerticalAlignment="Center"
+                Margin="0,0,6,0"
+                Foreground="{StaticResource MutedTextBrush}"
+                Text="From" />
+              <TextBox
+                Grid.Column="1"
+                Text="{Binding SameShape2From, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+              <TextBlock
+                Grid.Column="3"
+                VerticalAlignment="Center"
+                Margin="0,0,6,0"
+                Foreground="{StaticResource MutedTextBrush}"
+                Text="To" />
+              <TextBox
+                Grid.Column="4"
+                Text="{Binding SameShape2To, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+              <Button
+                Grid.Column="6"
+                MinWidth="100"
+                Command="{Binding SameShape2Command}"
+                Content="Same Shape 2" />
+            </Grid>
+          </StackPanel>
+        </GroupBox>
+        <GroupBox Header="Coupler" Margin="0,10,0,0">
+          <StackPanel>
+            <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+              <RadioButton
+                Content="One"
+                GroupName="SetTypeCouplerPlacement"
+                IsChecked="{Binding PlaceOneCoupler}" />
+              <RadioButton
+                Content="Two"
+                GroupName="SetTypeCouplerPlacement"
+                IsChecked="{Binding PlaceTwoCouplers}" />
+            </StackPanel>
+            <TextBlock
+              Margin="0,0,0,4"
+              Foreground="{StaticResource MutedTextBrush}"
+              Text="Coupler family" />
+            <ComboBox
+              IsEditable="False"
+              IsTextSearchEnabled="True"
+              ItemsSource="{Binding CouplerFamilyNames}"
+              SelectedItem="{Binding SelectedCouplerFamilyName}" />
+            <Button
+              Margin="0,8,0,0"
+              HorizontalAlignment="Stretch"
+              Command="{Binding PlaceCouplerCommand}"
+              Content="Place Coupler" />
+          </StackPanel>
+        </GroupBox>
+      </StackPanel>
+    </Grid>
+
+    <TextBox
+      Grid.Row="2"
+      Margin="0,10,0,0"
+      Style="{StaticResource StatusTextBoxStyle}"
+      MaxHeight="90"
+      Text="{Binding Status, Mode=OneWay}" />
+  </Grid>
+</Window>

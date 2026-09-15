@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8" standalone="no"?>
+<RevitAddIns>
+	<AddIn Type="Application">
+		<Name>NMKRebar</Name>
+		<Assembly>NMKRebar\NMKRebar.dll</Assembly>
+		<FullClassName>NMKRebar.NMKRebarApp</FullClassName>
+		<AddInId>8C4E2F91-6A3B-4D17-9E50-B2C8F1A7D046</AddInId>
+		<Text>NMKRebar</Text>
+		<VisibilityMode>AlwaysVisible</VisibilityMode>
+		<LanguageType>Unknown</LanguageType>
+		<VendorId>NMK</VendorId>
+		<VendorDescription>https://nmk.com.au/</VendorDescription>
+	</AddIn>
+</RevitAddIns>
