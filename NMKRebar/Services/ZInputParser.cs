@@ -171,6 +171,23 @@ namespace NMKRebar.Services
       return parsed;
     }
 
+    public static List<double> ExpandInOrder(IReadOnlyList<string> texts, int count)
+    {
+      Dictionary<int, double> parsed = ParseExpanded(texts, count, new List<string>());
+      var list = new List<double>();
+      for (int n = 1; n <= count; n++)
+      {
+        if (!parsed.TryGetValue(n, out double value))
+        {
+          break;
+        }
+
+        list.Add(value);
+      }
+
+      return list;
+    }
+
     public static Dictionary<int, double> ParseCumulative(IReadOnlyList<string> texts, int count, List<string> warnings)
     {
       Dictionary<int, double> deltas = ParseExpanded(texts, count, warnings);

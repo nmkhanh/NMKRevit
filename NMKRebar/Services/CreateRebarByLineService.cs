@@ -82,7 +82,7 @@ namespace NMKRebar.Services
       {
         text.AppendLine();
         text.AppendLine("Warnings:");
-        foreach (string warning in Warnings.Take(20))
+        foreach (string warning in Warnings.Take(IsModelLineCheck ? 80 : 20))
         {
           text.AppendLine("- " + warning);
         }
@@ -695,7 +695,7 @@ namespace NMKRebar.Services
       StringBuilder? log)
     {
       IList<Curve> extracted = ExtractCurves(instance);
-      IList<Curve> basePath = SortIntoClockwiseCurveLoop(extracted, instance, out _);
+      IList<Curve> basePath = WeldEndpoints(SortIntoClockwiseCurveLoop(extracted, instance, out _));
       int segmentIndex = IndexOfNthLine(basePath, lineIndex);
       if (segmentIndex < 0)
       {
@@ -839,7 +839,7 @@ namespace NMKRebar.Services
     private static RevitRebar CreateOne(Document doc, Element host, FamilyInstance instance, RebarBarType barType, bool useFreeForm, StringBuilder? log = null)
     {
       IList<Curve> extracted = ExtractCurves(instance);
-      IList<Curve> path = SortIntoClockwiseCurveLoop(extracted, instance, out XYZ normal);
+      IList<Curve> path = WeldEndpoints(SortIntoClockwiseCurveLoop(extracted, instance, out XYZ normal));
       if (log != null)
       {
         log.AppendLine();
@@ -848,8 +848,19 @@ namespace NMKRebar.Services
         log.AppendLine($"SEQUENCE {string.Join(" ", path.Select(curve => curve is Arc ? "Arc" : "Line"))}");
         for (int i = 0; i < path.Count; i++)
         {
-          double gapMm = i == 0 ? 0 : EndpointGapMm(path[i - 1].GetEndPoint(1), path[i].GetEndPoint(0));
-          log.AppendLine($"  {(i + 1).ToString("00")} {DescribeCurve(path[i])} gapFromPrevMm={gapMm:0.#####}");
+          double sequentialGapMm = i == 0 ? 0 : EndpointGapMm(path[i - 1].GetEndPoint(1), path[i].GetEndPoint(0));
+          double sharedMm = i == 0 ? 0 : MinSharedEndMm(path[i - 1], path[i]);
+          log.AppendLine($"  {(i + 1).ToString("00")} {DescribeCurve(path[i])} P1toP0={sequentialGapMm:0.#####} closestEnds={sharedMm:0.#####}");
+          if (i > 0 && sharedMm > 1.0)
+          {
+            log.AppendLine($"    PREV {DescribeCurve(path[i - 1])}");
+            log.AppendLine($"    NEXT {DescribeCurve(path[i])}");
+            log.AppendLine(
+              $"    ENDS prevP0-nextP0={EndpointGapMm(path[i - 1].GetEndPoint(0), path[i].GetEndPoint(0)):0.00}"
+              + $" prevP0-nextP1={EndpointGapMm(path[i - 1].GetEndPoint(0), path[i].GetEndPoint(1)):0.00}"
+              + $" prevP1-nextP0={EndpointGapMm(path[i - 1].GetEndPoint(1), path[i].GetEndPoint(0)):0.00}"
+              + $" prevP1-nextP1={EndpointGapMm(path[i - 1].GetEndPoint(1), path[i].GetEndPoint(1)):0.00}");
+          }
         }
       }
 
@@ -941,6 +952,8 @@ namespace NMKRebar.Services
         throw new InvalidOperationException("Walk produced no curves.");
       }
 
+      path = IncludeEveryExtracted(unique, path);
+      path = OrientConsecutiveBySharedEnds(path);
       normal = PlaneNormalForRebar(path);
       return path;
     }
@@ -1128,18 +1141,40 @@ namespace NMKRebar.Services
         throw;
       }
 
-      path = IncludeEveryExtracted(extracted, path);
       log.AppendLine($"ORDERED {path.Count} extracted={extracted.Count} normal={Fmt(normal)} (unitless)");
       log.AppendLine($"SEQUENCE {string.Join(" ", path.Select(curve => curve is Arc ? "Arc" : "Line"))}");
       XYZ origin = path[0].GetEndPoint(0);
       Plane plane = Plane.CreateByNormalAndOrigin(normal, origin);
       SketchPlane sketch = SketchPlane.Create(doc, plane);
       var ids = new List<ElementId>();
+      int group = 1;
+      int indexInGroup = 0;
       for (int i = 0; i < path.Count; i++)
       {
-        string styleName = (i + 1).ToString("00");
-        double gapMm = i == 0 ? 0 : EndpointGapMm(path[i - 1].GetEndPoint(1), path[i].GetEndPoint(0));
-        TryAddPathModelCurve(doc, instance, sketch, plane, path[i], styleName, i, gapMm, warnings, log, ids);
+        double sequentialGapMm = i == 0 ? 0 : EndpointGapMm(path[i - 1].GetEndPoint(1), path[i].GetEndPoint(0));
+        double sharedMm = i == 0 ? 0 : MinSharedEndMm(path[i - 1], path[i]);
+        bool continuous = i == 0 || sharedMm <= 1.0;
+        if (i > 0 && !continuous)
+        {
+          group++;
+          indexInGroup = 0;
+          LogDiscontinuity(log, warnings, instance, group, path[i - 1], path[i], sequentialGapMm, sharedMm);
+        }
+
+        string styleName = $"{group:00}-{indexInGroup + 1:00}";
+        TryAddPathModelCurve(
+          doc,
+          instance,
+          sketch,
+          plane,
+          path[i],
+          styleName,
+          group - 1,
+          continuous ? 0 : sequentialGapMm,
+          warnings,
+          log,
+          ids);
+        indexInGroup++;
       }
 
       double closeMm = EndpointGapMm(path[path.Count - 1].GetEndPoint(1), path[0].GetEndPoint(0));
@@ -1170,13 +1205,85 @@ namespace NMKRebar.Services
 
       for (int i = 0; i < extracted.Count; i++)
       {
-        if (!used[i])
+        if (used[i])
         {
-          path.Add(extracted[i].Clone());
+          continue;
+        }
+
+        Curve leftover = extracted[i].Clone();
+        int insertAfter = -1;
+        for (int p = 0; p < path.Count; p++)
+        {
+          if (MinSharedEndMm(path[p], leftover) <= 1.0)
+          {
+            insertAfter = p;
+          }
+        }
+
+        if (insertAfter >= 0)
+        {
+          leftover = OrientToward(leftover, path[insertAfter].GetEndPoint(1));
+          path.Insert(insertAfter + 1, leftover);
+        }
+        else
+        {
+          path.Add(leftover);
         }
       }
 
       return path;
+    }
+
+    private static List<Curve> OrientConsecutiveBySharedEnds(IList<Curve> path)
+    {
+      var oriented = path.Select(curve => curve.Clone()).ToList();
+      for (int i = 1; i < oriented.Count; i++)
+      {
+        oriented[i] = OrientToward(oriented[i], oriented[i - 1].GetEndPoint(1));
+      }
+
+      return oriented;
+    }
+
+    private static double MinSharedEndMm(Curve left, Curve right)
+    {
+      XYZ[] a = { left.GetEndPoint(0), left.GetEndPoint(1) };
+      XYZ[] b = { right.GetEndPoint(0), right.GetEndPoint(1) };
+      double min = double.MaxValue;
+      foreach (XYZ p in a)
+      {
+        foreach (XYZ q in b)
+        {
+          min = Math.Min(min, EndpointGapMm(p, q));
+        }
+      }
+
+      return min;
+    }
+
+    private static void LogDiscontinuity(
+      StringBuilder log,
+      List<string> warnings,
+      FamilyInstance instance,
+      int newGroup,
+      Curve previous,
+      Curve next,
+      double sequentialGapMm,
+      double sharedMm)
+    {
+      string prevText = DescribeCurve(previous);
+      string nextText = DescribeCurve(next);
+      string message =
+        $"{instance.Id} new group {newGroup:00}: sequential P1→P0 {sequentialGapMm:0.00} mm, closest ends {sharedMm:0.00} mm.";
+      warnings.Add(message);
+      log.AppendLine($"    GAP {message}");
+      log.AppendLine($"    PREV {prevText}");
+      log.AppendLine($"    NEXT {nextText}");
+      log.AppendLine(
+        $"    ENDS prevP0-nextP0={EndpointGapMm(previous.GetEndPoint(0), next.GetEndPoint(0)):0.00}"
+        + $" prevP0-nextP1={EndpointGapMm(previous.GetEndPoint(0), next.GetEndPoint(1)):0.00}"
+        + $" prevP1-nextP0={EndpointGapMm(previous.GetEndPoint(1), next.GetEndPoint(0)):0.00}"
+        + $" prevP1-nextP1={EndpointGapMm(previous.GetEndPoint(1), next.GetEndPoint(1)):0.00}");
     }
 
     private static void TryAddPathModelCurve(
@@ -1193,13 +1300,6 @@ namespace NMKRebar.Services
       List<ElementId> ids)
     {
       log.AppendLine($"  style {styleName} {DescribeCurve(curve)} gapFromPrevMm={gapMm:0.#####}");
-      if (gapMm > 0)
-      {
-        string message = $"{instance.Id} style {styleName}: gap {gapMm:0.00} mm (not continuous).";
-        warnings.Add(message);
-        log.AppendLine($"    GAP {message}");
-      }
-
       GraphicsStyle? style;
       try
       {
@@ -1531,6 +1631,16 @@ namespace NMKRebar.Services
         int index = IndexOfBestJoin(unused, end, incoming, wantArc, coincident, arcNormal);
         if (index < 0)
         {
+          index = IndexOfBestJoin(unused, end, incoming, !wantArc, coincident, arcNormal);
+        }
+
+        if (index < 0)
+        {
+          index = IndexOfNearestSharedEnd(unused, end, coincident);
+        }
+
+        if (index < 0)
+        {
           break;
         }
 
@@ -1556,6 +1666,29 @@ namespace NMKRebar.Services
       }
 
       return curve.Clone();
+    }
+
+    private static int IndexOfNearestSharedEnd(IList<Curve> unused, XYZ point, double coincident)
+    {
+      int bestIndex = -1;
+      double best = double.MaxValue;
+      for (int i = 0; i < unused.Count; i++)
+      {
+        Curve curve = unused[i];
+        if (!HasEnd(curve, point, coincident))
+        {
+          continue;
+        }
+
+        double distance = Math.Min(curve.GetEndPoint(0).DistanceTo(point), curve.GetEndPoint(1).DistanceTo(point));
+        if (distance < best)
+        {
+          best = distance;
+          bestIndex = i;
+        }
+      }
+
+      return bestIndex;
     }
 
     private static int IndexOfBestJoin(

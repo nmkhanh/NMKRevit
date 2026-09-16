@@ -4,17 +4,27 @@
   xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
   xmlns:icon="clr-namespace:Material.Icons.WPF;assembly=Material.Icons.WPF"
   Title="NMK Rebar — Check Path"
-  Width="460"
-  MinWidth="460"
-  MaxWidth="460"
-  SizeToContent="Height"
-  ResizeMode="NoResize"
+  Width="980"
+  Height="720"
+  MinWidth="720"
+  MinHeight="480"
+  ResizeMode="CanResize"
   WindowStartupLocation="CenterOwner">
   <Window.Resources>
     <ResourceDictionary>
       <ResourceDictionary.MergedDictionaries>
         <ResourceDictionary Source="pack://application:,,,/NMKRebar;component/Views/NmkTheme.xaml" />
       </ResourceDictionary.MergedDictionaries>
+      <Style x:Key="CheckPathLogTextBoxStyle" TargetType="TextBox" BasedOn="{StaticResource StatusTextBoxStyle}">
+        <Setter Property="MinHeight" Value="200" />
+        <Setter Property="MaxHeight" Value="10000" />
+        <Setter Property="FontFamily" Value="Consolas" />
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="TextWrapping" Value="NoWrap" />
+        <Setter Property="HorizontalScrollBarVisibility" Value="Auto" />
+        <Setter Property="VerticalScrollBarVisibility" Value="Auto" />
+        <Setter Property="VerticalContentAlignment" Value="Top" />
+      </Style>
     </ResourceDictionary>
   </Window.Resources>
 
@@ -26,17 +36,25 @@
       BorderBrush="{StaticResource BorderBrush}"
       BorderThickness="1"
       CornerRadius="8">
-      <StackPanel>
+      <Grid>
+        <Grid.RowDefinitions>
+          <RowDefinition Height="Auto" />
+          <RowDefinition Height="Auto" />
+          <RowDefinition Height="Auto" />
+          <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
         <TextBlock
           FontSize="16"
           FontWeight="SemiBold"
           Text="Check Path" />
         <TextBlock
+          Grid.Row="1"
           Margin="0,4,0,10"
           TextWrapping="Wrap"
           Foreground="{StaticResource MutedTextBrush}"
-          Text="Create model lines from NMK_Rebar_Array shape paths (styles 01, 02…). Does not create rebar." />
+          Text="Create model lines from NMK_Rebar_Array shape paths. Shared endpoints count as continuous (curve is reversed if needed). Gap log shows both curves and all four end distances." />
         <Button
+          Grid.Row="2"
           HorizontalAlignment="Stretch"
           Margin="0,0,0,10"
           Command="{Binding CreateModelLinesCommand}">
@@ -51,10 +69,10 @@
           </StackPanel>
         </Button>
         <TextBox
-          MinHeight="120"
-          Style="{StaticResource StatusTextBoxStyle}"
+          Grid.Row="3"
+          Style="{StaticResource CheckPathLogTextBoxStyle}"
           Text="{Binding Status, Mode=OneWay}" />
-      </StackPanel>
+      </Grid>
     </Border>
   </Grid>
 </Window>

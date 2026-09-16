@@ -25,7 +25,17 @@ namespace NMKRebar.ViewModels
         Status = await RevitTaskRun.Async(_uiapp, uiapp =>
         {
           UIDocument uidoc = uiapp.ActiveUIDocument ?? throw new InvalidOperationException("No active document.");
-          return CreateRebarByLineService.CreatePathModelLinesCheck(uidoc).ToMessage();
+          CreateRebarByLineResult result = CreateRebarByLineService.CreatePathModelLinesCheck(uidoc);
+          var text = new System.Text.StringBuilder();
+          text.Append(result.ToMessage());
+          if (!string.IsNullOrWhiteSpace(result.LogPath) && System.IO.File.Exists(result.LogPath))
+          {
+            text.AppendLine();
+            text.AppendLine("=== path log ===");
+            text.Append(System.IO.File.ReadAllText(result.LogPath));
+          }
+
+          return text.ToString();
         });
         RevitTaskRun.Wake(_uiapp);
       }

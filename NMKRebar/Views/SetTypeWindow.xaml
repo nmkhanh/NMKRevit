@@ -232,6 +232,7 @@
               <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="18" />
                 <ColumnDefinition Width="22" />
+                <ColumnDefinition Width="22" />
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="4" />
                 <ColumnDefinition Width="50" />
@@ -241,20 +242,27 @@
               <TextBlock
                 Grid.Column="1"
                 VerticalAlignment="Center"
+                HorizontalAlignment="Center"
                 Foreground="{StaticResource MutedTextBrush}"
-                Text="V" />
+                ToolTip="On: L = 12*d if Angle 90 and Curve on, 15*d if Angle 90 and Curve off, 8*d if Angle 0 (turns Curve on)."
+                Text="d" />
               <TextBlock
                 Grid.Column="2"
                 VerticalAlignment="Center"
                 Foreground="{StaticResource MutedTextBrush}"
+                Text="V" />
+              <TextBlock
+                Grid.Column="3"
+                VerticalAlignment="Center"
+                Foreground="{StaticResource MutedTextBrush}"
                 Text="Angle" />
               <TextBlock
-                Grid.Column="4"
+                Grid.Column="5"
                 VerticalAlignment="Center"
                 Foreground="{StaticResource MutedTextBrush}"
                 Text="Bending" />
               <TextBlock
-                Grid.Column="6"
+                Grid.Column="7"
                 VerticalAlignment="Center"
                 Foreground="{StaticResource MutedTextBrush}"
                 Text="L" />
@@ -267,6 +275,7 @@
                   <Grid Margin="0,2">
                     <Grid.ColumnDefinitions>
                       <ColumnDefinition Width="18" />
+                      <ColumnDefinition Width="22" />
                       <ColumnDefinition Width="22" />
                       <ColumnDefinition Width="*" />
                       <ColumnDefinition Width="4" />
@@ -282,8 +291,14 @@
                       Grid.Column="1"
                       HorizontalAlignment="Center"
                       VerticalAlignment="Center"
+                      ToolTip="On and V on: L = 12*d if Angle 90 and Curve on, 15*d if Angle 90 and Curve off, 8*d if Angle 0 (turns Curve on)."
+                      IsChecked="{Binding HookFromD, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}" />
+                    <CheckBox
+                      Grid.Column="2"
+                      HorizontalAlignment="Center"
+                      VerticalAlignment="Center"
                       IsChecked="{Binding Visible, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}" />
-                    <Grid Grid.Column="2">
+                    <Grid Grid.Column="3">
                       <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="2" />
@@ -313,12 +328,12 @@
                         Text="{Binding AngleSeconds, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}" />
                     </Grid>
                     <TextBox
-                      Grid.Column="4"
+                      Grid.Column="5"
                       Height="24"
                       Padding="2,0"
                       Text="{Binding Bending, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}" />
                     <TextBox
-                      Grid.Column="6"
+                      Grid.Column="7"
                       Height="24"
                       Padding="2,0"
                       Text="{Binding L, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}" />
@@ -534,11 +549,36 @@
                 Content="Block"
                 IsChecked="{Binding AddXyBlock}" />
             </StackPanel>
+            <Grid Margin="0,0,0,8">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="8" />
+                <ColumnDefinition Width="56" />
+                <ColumnDefinition Width="8" />
+                <ColumnDefinition Width="Auto" />
+              </Grid.ColumnDefinitions>
+              <Button
+                HorizontalAlignment="Stretch"
+                Command="{Binding AddXyDataCommand}"
+                Content="Add XYZ data" />
+              <ComboBox
+                Grid.Column="2"
+                MinWidth="56"
+                VerticalAlignment="Center"
+                IsEditable="False"
+                ItemsSource="{Binding RevertXyzAxisOptions}"
+                SelectedItem="{Binding SelectedRevertXyzAxis}" />
+              <Button
+                Grid.Column="4"
+                MinWidth="90"
+                Command="{Binding RevertXyzCommand}"
+                Content="Revert" />
+            </Grid>
             <Button
               HorizontalAlignment="Stretch"
               Margin="0,0,0,8"
-              Command="{Binding AddXyDataCommand}"
-              Content="Add XYZ data" />
+              Command="{Binding MoveXyCommand}"
+              Content="{Binding MoveXyButtonText}" />
             <Grid Margin="0,0,0,8">
               <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*" />

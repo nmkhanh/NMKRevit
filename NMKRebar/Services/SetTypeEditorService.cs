@@ -167,13 +167,18 @@ namespace NMKRebar.Services
 
     public static string FormatStraightBendingMm(double diameterMm)
     {
-      double bending = 3 * diameterMm;
-      if (Math.Abs(bending - Math.Round(bending)) < 0.0001)
+      return FormatBarMultipleMm(diameterMm, 3);
+    }
+
+    public static string FormatBarMultipleMm(double diameterMm, double factor)
+    {
+      double value = factor * diameterMm;
+      if (Math.Abs(value - Math.Round(value)) < 0.0001)
       {
-        return Math.Round(bending).ToString(CultureInfo.InvariantCulture);
+        return Math.Round(value).ToString(CultureInfo.InvariantCulture);
       }
 
-      return bending.ToString("0.###", CultureInfo.InvariantCulture);
+      return value.ToString("0.###", CultureInfo.InvariantCulture);
     }
 
     public static IReadOnlyList<string> CollectTypeNames(Document doc, string folder)
@@ -218,7 +223,7 @@ namespace NMKRebar.Services
         Add(symbol.Name);
       }
 
-      names.Sort(StringComparer.OrdinalIgnoreCase);
+      names.Sort(PlaceCouplerService.CompareNumericNames);
       return names;
     }
 
@@ -739,19 +744,16 @@ namespace NMKRebar.Services
       }
 
       lines.Sort((left, right) => left.T.CompareTo(right.T));
-      var gaps = new List<double>();
-      var offsets = new List<double>();
-      for (int i = 0; i < lines.Count; i++)
+      var ts = new List<double>(lines.Count);
+      var offsets = new List<double>(lines.Count);
+      foreach ((double t, double offsetMm) in lines)
       {
-        offsets.Add(lines[i].OffsetMm);
-        if (i > 0)
-        {
-          gaps.Add(ToMm(Math.Abs(lines[i].T - lines[i - 1].T)));
-        }
+        ts.Add(t);
+        offsets.Add(offsetMm);
       }
 
       var result = new AddXyDataResult { ToX = toX };
-      foreach (double value in ApplySoleGaps(gaps, sole, start))
+      foreach (double value in ApplySoleZs(ts, sole, start))
       {
         result.ZValues.Add(FormatMm(value));
       }
@@ -765,23 +767,93 @@ namespace NMKRebar.Services
       return result;
     }
 
-    private static List<double> ApplySoleGaps(IReadOnlyList<double> gaps, bool sole, bool start)
+    public static RevertXyzResult RevertXyz(
+      string axis,
+      IReadOnlyList<string> zTexts,
+      IReadOnlyList<string> axisTexts)
+    {
+      string key = (axis ?? "X").Trim().ToUpperInvariant();
+      List<double> zs = ZInputParser.ExpandInOrder(zTexts, ZCount);
+      int positiveZ = zs.Count(value => value > 0);
+      var result = new RevertXyzResult { Axis = key };
+
+      if (key == "Z")
+      {
+        int before = zs.Count;
+        zs.RemoveAll(value => value > 0);
+        result.Values = zs;
+        result.Message = $"Reverted Z: removed {before - zs.Count} value(s) > 0, kept {zs.Count}.";
+        return result;
+      }
+
+      if (key != "X" && key != "Y")
+      {
+        throw new InvalidOperationException("Choose X, Y, or Z.");
+      }
+
+      List<double> values = ZInputParser.ExpandInOrder(axisTexts, ZCount);
+      if (positiveZ <= 0)
+      {
+        throw new InvalidOperationException("No Z value > 0 to reverse against.");
+      }
+
+      if (values.Count == 0)
+      {
+        throw new InvalidOperationException($"No {key} values to reverse.");
+      }
+
+      int take = Math.Min(positiveZ, values.Count);
+      values.Reverse(0, take);
+      result.Values = values;
+      result.Message = $"Reverted {key}: reversed {take} value(s) (Z>0 count={positiveZ}). SET to write.";
+      return result;
+    }
+
+    public sealed class RevertXyzResult
+    {
+      public string Axis { get; set; } = "X";
+
+      public List<double> Values { get; set; } = new();
+
+      public string Message { get; set; } = string.Empty;
+    }
+
+    private static List<double> ApplySoleZs(IReadOnlyList<double> ts, bool sole, bool start)
     {
       if (!sole)
       {
         var all = new List<double> { 0 };
-        all.AddRange(gaps);
+        for (int i = 1; i < ts.Count; i++)
+        {
+          all.Add(ToMm(Math.Abs(ts[i] - ts[i - 1])));
+        }
+
         return all;
       }
 
       if (start)
       {
-        var result = new List<double> { 0 };
-        result.AddRange(SumStridePairs(gaps, 1));
-        return result;
+        var even = new List<double> { 0 };
+        for (int i = 0; i + 2 < ts.Count; i += 2)
+        {
+          even.Add(ToMm(Math.Abs(ts[i + 2] - ts[i])));
+        }
+
+        return even;
       }
 
-      return SumStridePairs(gaps, 0);
+      var odd = new List<double>();
+      if (ts.Count >= 2)
+      {
+        odd.Add(ToMm(Math.Abs(ts[1] - ts[0])));
+      }
+
+      for (int i = 1; i + 2 < ts.Count; i += 2)
+      {
+        odd.Add(ToMm(Math.Abs(ts[i + 2] - ts[i])));
+      }
+
+      return odd;
     }
 
     private static List<double> ApplySoleOffsets(IReadOnlyList<double> offsets, bool sole, bool start)
@@ -800,17 +872,6 @@ namespace NMKRebar.Services
       for (int index = startIndex; index < values.Count; index += 2)
       {
         result.Add(values[index]);
-      }
-
-      return result;
-    }
-
-    private static List<double> SumStridePairs(IReadOnlyList<double> values, int startIndex)
-    {
-      var result = new List<double>();
-      for (int index = startIndex; index + 1 < values.Count; index += 2)
-      {
-        result.Add(values[index] + values[index + 1]);
       }
 
       return result;

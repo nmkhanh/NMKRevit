@@ -76,6 +76,11 @@ namespace NMKRebar.ViewModels
     [ObservableProperty]
     private bool _visible;
 
+    [ObservableProperty]
+    private bool _hookFromD;
+
+    private string _manualL = string.Empty;
+
     public bool TryAngleDecimal(out string decimalDegrees)
     {
       return AngleDms.TryCombine(AngleDegrees, AngleMinutes, AngleSeconds, out decimalDegrees);
@@ -90,6 +95,63 @@ namespace NMKRebar.ViewModels
       yield return new ShapeParameterValue($"{Index}_L", L, false);
     }
 
+    public bool UsesHookFromD => HookFromD && Visible;
+
+    public void ApplyDisplayedLength(double? diameterMm, bool curve)
+    {
+      if (UsesHookFromD
+          && diameterMm is > 0
+          && TryHookFactor(curve, out double factor))
+      {
+        L = SetTypeEditorService.FormatBarMultipleMm(diameterMm.Value, factor);
+        return;
+      }
+
+      if (!UsesHookFromD)
+      {
+        L = _manualL;
+      }
+    }
+
+    public bool TryHookFactor(bool curve, out double factor)
+    {
+      factor = 0;
+      if (!TryAngleDecimal(out string decimalDegrees)
+          || !VerticalCsvService.TryParseNumber(decimalDegrees, out double angle))
+      {
+        return false;
+      }
+
+      if (Math.Abs(angle - 90) < 0.5)
+      {
+        factor = curve ? 12 : 15;
+        return true;
+      }
+
+      if (Math.Abs(angle) < 0.5)
+      {
+        factor = 8;
+        return true;
+      }
+
+      return false;
+    }
+
+    public bool IsAngleZero()
+    {
+      return UsesHookFromD
+        && TryHookFactor(true, out double factor)
+        && Math.Abs(factor - 8) < 0.001;
+    }
+
+    partial void OnLChanged(string value)
+    {
+      if (!UsesHookFromD)
+      {
+        _manualL = value ?? string.Empty;
+      }
+    }
+
     public void LoadFrom(IReadOnlyDictionary<string, ShapeParameterValue> values)
     {
       Visible = VerticalCsvService.TryParseYesNo(ValueOf($"{Index}_V", values), out int yesNo) && yesNo == 1;
@@ -98,16 +160,21 @@ namespace NMKRebar.ViewModels
       AngleMinutes = minutes;
       AngleSeconds = seconds;
       Bending = ValueOf($"{Index}_Bending", values);
-      L = ValueOf($"{Index}_L", values);
+      string loaded = ValueOf($"{Index}_L", values);
+      _manualL = loaded;
+      L = loaded;
+      HookFromD = false;
     }
 
     public void Clear()
     {
       Visible = false;
+      HookFromD = false;
       AngleDegrees = string.Empty;
       AngleMinutes = string.Empty;
       AngleSeconds = string.Empty;
       Bending = string.Empty;
+      _manualL = string.Empty;
       L = string.Empty;
     }
 
@@ -143,6 +210,7 @@ namespace NMKRebar.ViewModels
     private bool _ready;
     private bool _loadingType;
     private bool _loadingShape;
+    private bool _applyingHook;
     private string _savedTypeName = string.Empty;
     private double? _barDiameterMm;
 
@@ -156,7 +224,9 @@ namespace NMKRebar.ViewModels
 
       for (int n = SetTypeEditorService.DimensionStart; n <= SetTypeEditorService.DimensionEnd; n++)
       {
-        DimensionRows.Add(new DimensionRow(n));
+        var row = new DimensionRow(n);
+        row.PropertyChanged += OnDimensionRowPropertyChanged;
+        DimensionRows.Add(row);
       }
 
       CurveRow.PropertyChanged += OnCurveRowPropertyChanged;
@@ -305,6 +375,13 @@ namespace NMKRebar.ViewModels
     [ObservableProperty]
     private bool _addXyBlock;
 
+    public IReadOnlyList<string> RevertXyzAxisOptions { get; } = new[] { "X", "Y", "Z" };
+
+    [ObservableProperty]
+    private string _selectedRevertXyzAxis = "X";
+
+    public string MoveXyButtonText => AddXyToX ? "X → Y" : "Y → X";
+
     public ObservableCollection<string> SameShapeTypeNames { get; } = new();
 
     [ObservableProperty]
@@ -359,12 +436,6 @@ namespace NMKRebar.ViewModels
         SaveFolder();
         string typeName = RequireType();
         string folder = DataFolder;
-        if (!CurveRow.IsChecked && !ApplyStraightBendingIfNeeded())
-        {
-          Status = "Curve is off: type name needs _Dxx (or parameter d) to set Bending = 3*d.";
-          return;
-        }
-
         if (!AngleDms.TryCombine(AngleDegrees, AngleMinutes, AngleSeconds, out string angleDecimal))
         {
           Status = "Angle: enter numeric degrees, minutes, seconds.";
@@ -682,6 +753,101 @@ namespace NMKRebar.ViewModels
     }
 
     [RelayCommand]
+    private void RevertXyz()
+    {
+      try
+      {
+        List<string> zTexts = ZRows.Select(row => row.Text).ToList();
+        List<string> axisTexts = string.Equals(SelectedRevertXyzAxis, "Y", StringComparison.OrdinalIgnoreCase)
+          ? ZRows.Select(row => row.Y).ToList()
+          : ZRows.Select(row => row.X).ToList();
+        if (string.Equals(SelectedRevertXyzAxis, "Z", StringComparison.OrdinalIgnoreCase))
+        {
+          axisTexts = zTexts;
+        }
+
+        SetTypeEditorService.RevertXyzResult reverted = SetTypeEditorService.RevertXyz(
+          SelectedRevertXyzAxis,
+          zTexts,
+          axisTexts);
+        IReadOnlyList<string> encoded = ZInputParser.EncodeSpacingsForDisplay(
+          reverted.Values,
+          SetTypeEditorService.ZCount);
+        for (int i = 0; i < ZRows.Count; i++)
+        {
+          string text = i < encoded.Count ? encoded[i] ?? string.Empty : string.Empty;
+          if (string.Equals(reverted.Axis, "Z", StringComparison.OrdinalIgnoreCase))
+          {
+            ZRows[i].Text = text;
+          }
+          else if (string.Equals(reverted.Axis, "Y", StringComparison.OrdinalIgnoreCase))
+          {
+            ZRows[i].Y = text;
+          }
+          else
+          {
+            ZRows[i].X = text;
+          }
+        }
+
+        Status = reverted.Message;
+      }
+      catch (Exception ex)
+      {
+        Status = ex.Message;
+      }
+    }
+
+    [RelayCommand]
+    private void MoveXy()
+    {
+      try
+      {
+        bool toY = AddXyToX;
+        int moved = 0;
+        for (int i = 0; i < ZRows.Count; i++)
+        {
+          if (toY)
+          {
+            if (string.IsNullOrWhiteSpace(ZRows[i].X))
+            {
+              continue;
+            }
+
+            ZRows[i].Y = ZRows[i].X;
+            ZRows[i].X = string.Empty;
+            moved++;
+          }
+          else
+          {
+            if (string.IsNullOrWhiteSpace(ZRows[i].Y))
+            {
+              continue;
+            }
+
+            ZRows[i].X = ZRows[i].Y;
+            ZRows[i].Y = string.Empty;
+            moved++;
+          }
+        }
+
+        if (moved == 0)
+        {
+          Status = toY ? "No X values to move to Y." : "No Y values to move to X.";
+          return;
+        }
+
+        Status = toY
+          ? $"Moved {moved} X value(s) to Y. SET to write."
+          : $"Moved {moved} Y value(s) to X. SET to write.";
+      }
+      catch (Exception ex)
+      {
+        Status = ex.Message;
+      }
+    }
+
+    [RelayCommand]
     private void SelectModelInPlace()
     {
       _ = SelectModelInPlaceAsync();
@@ -970,6 +1136,8 @@ namespace NMKRebar.ViewModels
 
     partial void OnSameShape2ToChanged(string value) => SaveFolder();
 
+    partial void OnAddXyToXChanged(bool value) => OnPropertyChanged(nameof(MoveXyButtonText));
+
     partial void OnAddXyBlockChanged(bool value) => SaveFolder();
 
     partial void OnPlaceOneCouplerChanged(bool value)
@@ -1151,7 +1319,7 @@ namespace NMKRebar.ViewModels
 
       _loadingType = true;
       TypeItems.Clear();
-      foreach (SetTypeListItem item in filtered)
+      foreach (SetTypeListItem item in filtered.OrderBy(item => item.TypeName, Comparer<string>.Create(PlaceCouplerService.CompareNumericNames)))
       {
         TypeItems.Add(item);
       }
@@ -1338,6 +1506,53 @@ namespace NMKRebar.ViewModels
       ApplyStraightBendingIfNeeded();
     }
 
+    private void OnDimensionRowPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+      if (_loadingShape || !_ready || _applyingHook)
+      {
+        return;
+      }
+
+      if (e.PropertyName != nameof(DimensionRow.HookFromD) || sender is not DimensionRow row)
+      {
+        return;
+      }
+
+      ApplyHookLengthForRow(row);
+    }
+
+    private void ApplyHookLengthForRow(DimensionRow row)
+    {
+      if (_loadingShape || !_ready || _applyingHook)
+      {
+        return;
+      }
+
+      _applyingHook = true;
+      try
+      {
+        if (row.IsAngleZero() && !CurveRow.IsChecked)
+        {
+          CurveRow.IsChecked = true;
+        }
+
+        TryResolveBarDiameter(out double? diameterMm);
+        if (row.UsesHookFromD
+            && row.TryHookFactor(CurveRow.IsChecked, out _)
+            && diameterMm is not > 0)
+        {
+          Status = $"{row.Index}: need _Dxx (or d) for 12*d / 15*d / 8*d.";
+          return;
+        }
+
+        row.ApplyDisplayedLength(diameterMm, CurveRow.IsChecked);
+      }
+      finally
+      {
+        _applyingHook = false;
+      }
+    }
+
     private bool ApplyStraightBendingIfNeeded()
     {
       if (CurveRow.IsChecked)
@@ -1362,6 +1577,25 @@ namespace NMKRebar.ViewModels
       }
 
       return true;
+    }
+
+    private bool TryResolveBarDiameter(out double? diameterMm)
+    {
+      if (_barDiameterMm is > 0)
+      {
+        diameterMm = _barDiameterMm;
+        return true;
+      }
+
+      if (SetTypeEditorService.TryParseBarDiameterMm(SelectedTypeName ?? string.Empty, out double fromName))
+      {
+        _barDiameterMm = fromName;
+        diameterMm = fromName;
+        return true;
+      }
+
+      diameterMm = null;
+      return false;
     }
 
     private void ApplyAngleDmsFromDecimal(string decimalDegrees)
