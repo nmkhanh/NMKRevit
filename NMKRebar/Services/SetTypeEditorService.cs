@@ -767,46 +767,27 @@ namespace NMKRebar.Services
       return result;
     }
 
-    public static RevertXyzResult RevertXyz(
-      string axis,
-      IReadOnlyList<string> zTexts,
-      IReadOnlyList<string> axisTexts)
+    public static RevertXyzResult RevertXyz(string axis, IReadOnlyList<string> axisTexts)
     {
       string key = (axis ?? "X").Trim().ToUpperInvariant();
-      List<double> zs = ZInputParser.ExpandInOrder(zTexts, ZCount);
-      int positiveZ = zs.Count(value => value > 0);
-      var result = new RevertXyzResult { Axis = key };
-
-      if (key == "Z")
-      {
-        int before = zs.Count;
-        zs.RemoveAll(value => value > 0);
-        result.Values = zs;
-        result.Message = $"Reverted Z: removed {before - zs.Count} value(s) > 0, kept {zs.Count}.";
-        return result;
-      }
-
-      if (key != "X" && key != "Y")
+      if (key != "X" && key != "Y" && key != "Z")
       {
         throw new InvalidOperationException("Choose X, Y, or Z.");
       }
 
       List<double> values = ZInputParser.ExpandInOrder(axisTexts, ZCount);
-      if (positiveZ <= 0)
-      {
-        throw new InvalidOperationException("No Z value > 0 to reverse against.");
-      }
-
       if (values.Count == 0)
       {
         throw new InvalidOperationException($"No {key} values to reverse.");
       }
 
-      int take = Math.Min(positiveZ, values.Count);
-      values.Reverse(0, take);
-      result.Values = values;
-      result.Message = $"Reverted {key}: reversed {take} value(s) (Z>0 count={positiveZ}). SET to write.";
-      return result;
+      values.Reverse();
+      return new RevertXyzResult
+      {
+        Axis = key,
+        Values = values,
+        Message = $"Reverted {key}: {values.Count} value(s) 0..n → n..0. SET to write."
+      };
     }
 
     public sealed class RevertXyzResult

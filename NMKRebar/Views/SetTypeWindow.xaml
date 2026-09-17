@@ -4,9 +4,9 @@
   xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
   xmlns:icon="clr-namespace:Material.Icons.WPF;assembly=Material.Icons.WPF"
   Title="NMK Rebar — Set Type"
-  Width="800"
-  Height="920"
-  MinHeight="760"
+  Width="850"
+  Height="1000"
+  MinHeight="850"
   WindowStartupLocation="CenterOwner">
   <Window.Resources>
     <ResourceDictionary>
@@ -161,8 +161,9 @@
       <Grid Grid.Column="2">
         <Grid.RowDefinitions>
           <RowDefinition Height="Auto" />
+          <RowDefinition
+            Height="Auto" />
           <RowDefinition Height="*" />
-          <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
         <Border
           Background="{StaticResource PanelBrush}"
@@ -343,8 +344,39 @@
             </ItemsControl>
           </Grid>
         </Border>
-        <Border
+        <Grid
+          Margin="0,10,0,0"
           Grid.Row="1"
+          >
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition
+              Width="*" />
+            <ColumnDefinition
+              Width="8" />
+            <ColumnDefinition
+              Width="*" />
+            <ColumnDefinition
+              Width="8" />
+            <ColumnDefinition
+              Width="*" />
+          </Grid.ColumnDefinitions>
+          <Button
+            HorizontalAlignment="Stretch"
+            Command="{Binding SaveShapeCommand}"
+            Content="SAVE" />
+          <Button
+            Grid.Column="2"
+            HorizontalAlignment="Stretch"
+            Command="{Binding SelectInstancesCommand}"
+            Content="SELECT" />
+          <Button
+            Grid.Column="4"
+            HorizontalAlignment="Stretch"
+            Command="{Binding SetZCommand}"
+            Content="SET" />
+        </Grid>
+        <Border
+          Grid.Row="2"
           Margin="0,10,0,0"
           Background="{StaticResource PanelBrush}"
           BorderBrush="{StaticResource BorderBrush}"
@@ -408,29 +440,7 @@
             </ScrollViewer>
           </Grid>
         </Border>
-        <Grid Grid.Row="2" Margin="0,10,0,0">
-          <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="*" />
-            <ColumnDefinition Width="8" />
-            <ColumnDefinition Width="*" />
-            <ColumnDefinition Width="8" />
-            <ColumnDefinition Width="*" />
-          </Grid.ColumnDefinitions>
-          <Button
-            HorizontalAlignment="Stretch"
-            Command="{Binding SaveShapeCommand}"
-            Content="SAVE" />
-          <Button
-            Grid.Column="2"
-            HorizontalAlignment="Stretch"
-            Command="{Binding SelectInstancesCommand}"
-            Content="SELECT" />
-          <Button
-            Grid.Column="4"
-            HorizontalAlignment="Stretch"
-            Command="{Binding SetZCommand}"
-            Content="SET" />
-        </Grid>
+        
       </Grid>
       <StackPanel
         Grid.Column="4">
@@ -574,11 +584,22 @@
                 Command="{Binding RevertXyzCommand}"
                 Content="Revert" />
             </Grid>
-            <Button
-              HorizontalAlignment="Stretch"
-              Margin="0,0,0,8"
-              Command="{Binding MoveXyCommand}"
-              Content="{Binding MoveXyButtonText}" />
+            <Grid Margin="0,0,0,8">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="8" />
+                <ColumnDefinition Width="*" />
+              </Grid.ColumnDefinitions>
+              <Button
+                HorizontalAlignment="Stretch"
+                Command="{Binding MoveXyCommand}"
+                Content="{Binding MoveXyButtonText}" />
+              <Button
+                Grid.Column="2"
+                HorizontalAlignment="Stretch"
+                Command="{Binding RefreshXyzCommand}"
+                Content="Refresh" />
+            </Grid>
             <Grid Margin="0,0,0,8">
               <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*" />

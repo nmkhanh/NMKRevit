@@ -757,18 +757,16 @@ namespace NMKRebar.ViewModels
     {
       try
       {
-        List<string> zTexts = ZRows.Select(row => row.Text).ToList();
         List<string> axisTexts = string.Equals(SelectedRevertXyzAxis, "Y", StringComparison.OrdinalIgnoreCase)
           ? ZRows.Select(row => row.Y).ToList()
           : ZRows.Select(row => row.X).ToList();
         if (string.Equals(SelectedRevertXyzAxis, "Z", StringComparison.OrdinalIgnoreCase))
         {
-          axisTexts = zTexts;
+          axisTexts = ZRows.Select(row => row.Text).ToList();
         }
 
         SetTypeEditorService.RevertXyzResult reverted = SetTypeEditorService.RevertXyz(
           SelectedRevertXyzAxis,
-          zTexts,
           axisTexts);
         IReadOnlyList<string> encoded = ZInputParser.EncodeSpacingsForDisplay(
           reverted.Values,
@@ -840,6 +838,27 @@ namespace NMKRebar.ViewModels
         Status = toY
           ? $"Moved {moved} X value(s) to Y. SET to write."
           : $"Moved {moved} Y value(s) to X. SET to write.";
+      }
+      catch (Exception ex)
+      {
+        Status = ex.Message;
+      }
+    }
+
+    [RelayCommand]
+    private void RefreshXyz()
+    {
+      try
+      {
+        for (int i = 0; i < ZRows.Count; i++)
+        {
+          bool first = i == 0;
+          ZRows[i].X = first ? "0" : string.Empty;
+          ZRows[i].Y = first ? "0" : string.Empty;
+          ZRows[i].Text = first ? "0" : string.Empty;
+        }
+
+        Status = "XYZ refreshed: X1/Y1/Z1=0, other rows cleared. SET to write.";
       }
       catch (Exception ex)
       {
