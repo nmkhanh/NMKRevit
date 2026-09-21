@@ -67,8 +67,8 @@ namespace NMKRebar.Services
       for (int i = 0; i < cumulativeMm.Count; i++)
       {
         double spacing = i == 0
-          ? Math.Abs(RoundMm(cumulativeMm[i]))
-          : Math.Abs(RoundMm(cumulativeMm[i] - cumulativeMm[i - 1]));
+          ? Math.Abs(RoundToUnit(cumulativeMm[i]))
+          : Math.Abs(RoundToUnit(cumulativeMm[i] - cumulativeMm[i - 1]));
         if (spacing > 0 || i == 0)
         {
           spacings.Add(spacing);
@@ -84,35 +84,36 @@ namespace NMKRebar.Services
       return EncodeSpacingsForDisplay(spacings, rowCount);
     }
 
-    private static bool TryReadLengthMm(Parameter parameter, out double mm)
+    public static bool TryReadLengthMm(Parameter parameter, out double mm)
     {
       mm = 0;
-      string display = parameter.AsValueString() ?? string.Empty;
-      if (VerticalCsvService.TryParseNumber(display, out mm))
+      if (parameter == null || !parameter.HasValue || parameter.StorageType != StorageType.Double)
       {
-        mm = RoundMm(mm);
-        return true;
+        return false;
       }
 
-      if (parameter.StorageType == StorageType.Double)
-      {
-        mm = RoundMm(CsvValueConverter.FromInternalValue(parameter, parameter.AsDouble()));
-        return true;
-      }
-
-      return false;
+      mm = RoundToUnit(CsvValueConverter.FromInternalValue(parameter, parameter.AsDouble()));
+      return true;
     }
 
-    private static double RoundMm(double value) => Math.Round(value, 3);
+    public static double RoundToUnit(double value)
+    {
+      return Math.Round(value, 1, MidpointRounding.AwayFromZero);
+    }
+
+    public static string FormatRounded(double value)
+    {
+      return RoundToUnit(value).ToString("0.#", CultureInfo.InvariantCulture);
+    }
 
     private static string FormatSpacing(double value)
     {
-      return RoundMm(value).ToString(CultureInfo.InvariantCulture);
+      return FormatRounded(value);
     }
 
     private static bool NearlyEqual(double a, double b)
     {
-      return Math.Abs(a - b) < 0.001;
+      return Math.Abs(a - b) < 0.05;
     }
     private static readonly Regex Repeat = new(
       @"^\s*(\d+)\s*[xX×]\s*(.+)$",
@@ -140,7 +141,7 @@ namespace NMKRebar.Services
 
           for (int k = 0; k < repeat && index < count; k++)
           {
-            values[index++] = spacing;
+            values[index++] = RoundToUnit(spacing);
           }
 
           continue;
@@ -150,7 +151,7 @@ namespace NMKRebar.Services
         {
           if (index < count)
           {
-            values[index++] = value;
+            values[index++] = RoundToUnit(value);
           }
 
           continue;
@@ -200,8 +201,8 @@ namespace NMKRebar.Services
           continue;
         }
 
-        sum += -Math.Abs(delta);
-        values[n] = sum;
+        sum += -Math.Abs(RoundToUnit(delta));
+        values[n] = RoundToUnit(sum);
       }
 
       return values;

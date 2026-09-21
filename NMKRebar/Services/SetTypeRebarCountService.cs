@@ -30,5 +30,53 @@ namespace NMKRebar.Services
 
       return counts;
     }
+
+    public static Dictionary<string, int> CountShapesByRebarTypeName(Document doc)
+    {
+      var counts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+      foreach (FamilyInstance instance in new FilteredElementCollector(doc)
+        .OfClass(typeof(FamilyInstance))
+        .Cast<FamilyInstance>())
+      {
+        if (!CreateRebarByLineService.IsRebarShapeInstance(instance))
+        {
+          continue;
+        }
+
+        string typeName = ReadRebarTypeName(doc, instance);
+        if (string.IsNullOrWhiteSpace(typeName))
+        {
+          continue;
+        }
+
+        counts.TryGetValue(typeName, out int sum);
+        counts[typeName] = sum + 1;
+      }
+
+      return counts;
+    }
+
+    private static string ReadRebarTypeName(Document doc, FamilyInstance instance)
+    {
+      Parameter? parameter = instance.LookupParameter(CreateRebarByLineService.RebarTypeParameterName);
+      if (parameter == null || !parameter.HasValue)
+      {
+        return string.Empty;
+      }
+
+      if (parameter.StorageType == StorageType.ElementId)
+      {
+        Element? element = doc.GetElement(parameter.AsElementId());
+        return element?.Name?.Trim() ?? string.Empty;
+      }
+
+      string text = parameter.AsString();
+      if (string.IsNullOrWhiteSpace(text))
+      {
+        text = parameter.AsValueString();
+      }
+
+      return text?.Trim() ?? string.Empty;
+    }
   }
 }

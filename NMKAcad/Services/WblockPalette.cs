@@ -72,7 +72,8 @@ namespace NMKAcad.Services
       {
         AutoSize = false,
         Dock = System.Windows.Forms.DockStyle.Fill,
-        Child = view
+        Child = view,
+        BackColor = Color.FromArgb(22, 24, 29)
       };
 
       _palette = new PaletteSet("NMK Wblock", "NMKWBLOCK", PaletteId)

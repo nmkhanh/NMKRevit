@@ -43,7 +43,7 @@
           Margin="0,4,0,10"
           TextWrapping="Wrap"
           Foreground="{StaticResource MutedTextBrush}"
-          Text="Create RebarBarType and NMK_Rebar_Array types from Rebar.txt only." />
+          Text="Create RebarBarType and NMK_Rebar_Array (Structural Framing) types from Rebar.txt only." />
 
         <Grid Grid.Row="2" Margin="0,0,0,10">
           <Grid.ColumnDefinitions>

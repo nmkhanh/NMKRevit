@@ -79,26 +79,64 @@ namespace NMKRebar.ViewModels
     [ObservableProperty]
     private bool _hookFromD;
 
+    [ObservableProperty]
+    private bool _visibleIsVar;
+
     private string _manualL = string.Empty;
 
     public bool TryAngleDecimal(out string decimalDegrees)
     {
+      if (HasVarAngle())
+      {
+        decimalDegrees = SetTypeEditorService.VarText;
+        return false;
+      }
+
       return AngleDms.TryCombine(AngleDegrees, AngleMinutes, AngleSeconds, out decimalDegrees);
     }
 
     public IEnumerable<ShapeParameterValue> ToValues()
     {
-      TryAngleDecimal(out string angle);
-      yield return new ShapeParameterValue($"{Index}_V", Visible ? "Yes" : "No", true);
-      yield return new ShapeParameterValue($"{Index}_Angle", angle, false);
-      yield return new ShapeParameterValue($"{Index}_Bending", Bending, false);
-      yield return new ShapeParameterValue($"{Index}_L", L, false);
+      return ToSaveValues();
+    }
+
+    public IEnumerable<ShapeParameterValue> ToSaveValues()
+    {
+      if (!VisibleIsVar)
+      {
+        yield return new ShapeParameterValue($"{Index}_V", Visible ? "Yes" : "No", true);
+      }
+
+      if (!Visible)
+      {
+        yield break;
+      }
+
+      if (TryAngleDecimal(out string angle) && !SetTypeEditorService.IsVarValue(angle))
+      {
+        yield return new ShapeParameterValue($"{Index}_Angle", angle, false);
+      }
+
+      if (!SetTypeEditorService.IsVarValue(Bending))
+      {
+        yield return new ShapeParameterValue($"{Index}_Bending", Bending, false);
+      }
+
+      if (!SetTypeEditorService.IsVarValue(L))
+      {
+        yield return new ShapeParameterValue($"{Index}_L", L, false);
+      }
     }
 
     public bool UsesHookFromD => HookFromD && Visible;
 
     public void ApplyDisplayedLength(double? diameterMm, bool curve)
     {
+      if (SetTypeEditorService.IsVarValue(L))
+      {
+        return;
+      }
+
       if (UsesHookFromD
           && diameterMm is > 0
           && TryHookFactor(curve, out double factor))
@@ -154,11 +192,10 @@ namespace NMKRebar.ViewModels
 
     public void LoadFrom(IReadOnlyDictionary<string, ShapeParameterValue> values)
     {
-      Visible = VerticalCsvService.TryParseYesNo(ValueOf($"{Index}_V", values), out int yesNo) && yesNo == 1;
-      AngleDms.Split(ValueOf($"{Index}_Angle", values), out string degrees, out string minutes, out string seconds);
-      AngleDegrees = degrees;
-      AngleMinutes = minutes;
-      AngleSeconds = seconds;
+      string vText = ValueOf($"{Index}_V", values);
+      VisibleIsVar = SetTypeEditorService.IsVarValue(vText);
+      Visible = !VisibleIsVar && VerticalCsvService.TryParseYesNo(vText, out int yesNo) && yesNo == 1;
+      LoadAngle(ValueOf($"{Index}_Angle", values));
       Bending = ValueOf($"{Index}_Bending", values);
       string loaded = ValueOf($"{Index}_L", values);
       _manualL = loaded;
@@ -169,6 +206,7 @@ namespace NMKRebar.ViewModels
     public void Clear()
     {
       Visible = false;
+      VisibleIsVar = false;
       HookFromD = false;
       AngleDegrees = string.Empty;
       AngleMinutes = string.Empty;
@@ -176,6 +214,34 @@ namespace NMKRebar.ViewModels
       Bending = string.Empty;
       _manualL = string.Empty;
       L = string.Empty;
+    }
+
+    partial void OnVisibleChanged(bool value)
+    {
+      VisibleIsVar = false;
+    }
+
+    private bool HasVarAngle()
+    {
+      return SetTypeEditorService.IsVarValue(AngleDegrees)
+        || SetTypeEditorService.IsVarValue(AngleMinutes)
+        || SetTypeEditorService.IsVarValue(AngleSeconds);
+    }
+
+    private void LoadAngle(string value)
+    {
+      if (SetTypeEditorService.IsVarValue(value))
+      {
+        AngleDegrees = SetTypeEditorService.VarText;
+        AngleMinutes = string.Empty;
+        AngleSeconds = string.Empty;
+        return;
+      }
+
+      AngleDms.Split(value, out string degrees, out string minutes, out string seconds);
+      AngleDegrees = degrees;
+      AngleMinutes = minutes;
+      AngleSeconds = seconds;
     }
 
     private static string ValueOf(string name, IReadOnlyDictionary<string, ShapeParameterValue> values)
@@ -200,6 +266,15 @@ namespace NMKRebar.ViewModels
     private string _y = string.Empty;
 
     [ObservableProperty]
+    private string _l1 = string.Empty;
+
+    [ObservableProperty]
+    private string _l2 = string.Empty;
+
+    [ObservableProperty]
+    private string _l3 = string.Empty;
+
+    [ObservableProperty]
     private string _text = string.Empty;
   }
 
@@ -212,6 +287,7 @@ namespace NMKRebar.ViewModels
     private bool _loadingShape;
     private bool _applyingHook;
     private string _savedTypeName = string.Empty;
+    private string _savedViewFamilyTypeName = string.Empty;
     private double? _barDiameterMm;
 
     public SetTypeViewModel(UIApplication uiapp)
@@ -243,6 +319,7 @@ namespace NMKRebar.ViewModels
       string savedLength = settings.VarriesLengthParameter ?? "A";
       SelectedVarriesLengthParameter = VariesLengthParameters.Normalize(savedLength);
       _savedTypeName = settings.LastSetTypeName ?? string.Empty;
+      _savedViewFamilyTypeName = settings.LastViewFamilyTypeName ?? string.Empty;
       RebarHostElementId = CreateRebarByLineService.ParseHostElementId(settings.LastRebarHostElementId);
       CreateAllFilteredTypes = settings.CreateAllFilteredTypes;
       VariesLineIndex = settings.VariesLineIndex < 1 ? 1 : settings.VariesLineIndex;
@@ -359,6 +436,17 @@ namespace NMKRebar.ViewModels
     [ObservableProperty]
     private string _angleSeconds = string.Empty;
 
+    public ShapeParameterRow AngleHookRow { get; } = new("Angle_Hook", false, string.Empty);
+
+    [ObservableProperty]
+    private string _angleHookDegrees = string.Empty;
+
+    [ObservableProperty]
+    private string _angleHookMinutes = string.Empty;
+
+    [ObservableProperty]
+    private string _angleHookSeconds = string.Empty;
+
     public ObservableCollection<DimensionRow> DimensionRows { get; } = new();
 
     public ObservableCollection<ZInputRow> ZRows { get; } = new();
@@ -375,12 +463,17 @@ namespace NMKRebar.ViewModels
     [ObservableProperty]
     private bool _addXyBlock;
 
-    public IReadOnlyList<string> RevertXyzAxisOptions { get; } = new[] { "X", "Y", "Z" };
+    public IReadOnlyList<string> RevertXyzAxisOptions { get; } = new[] { "X", "Y", "Z", "1L", "2L", "3L" };
 
     [ObservableProperty]
     private string _selectedRevertXyzAxis = "X";
 
     public string MoveXyButtonText => AddXyToX ? "X → Y" : "Y → X";
+
+    public ObservableCollection<string> ViewFamilyTypeNames { get; } = new();
+
+    [ObservableProperty]
+    private string? _selectedViewFamilyTypeName;
 
     public ObservableCollection<string> SameShapeTypeNames { get; } = new();
 
@@ -436,32 +529,64 @@ namespace NMKRebar.ViewModels
         SaveFolder();
         string typeName = RequireType();
         string folder = DataFolder;
-        if (!AngleDms.TryCombine(AngleDegrees, AngleMinutes, AngleSeconds, out string angleDecimal))
+        var rows = new List<ShapeParameterValue> { CurveRow.ToValue() };
+        if (!SetTypeEditorService.IsVarValue(AngleHookDegrees)
+            && !SetTypeEditorService.IsVarValue(AngleHookMinutes)
+            && !SetTypeEditorService.IsVarValue(AngleHookSeconds))
         {
-          Status = "Angle: enter numeric degrees, minutes, seconds.";
-          return;
+          if (!AngleDms.TryCombine(AngleHookDegrees, AngleHookMinutes, AngleHookSeconds, out string hookDecimal))
+          {
+            Status = "Angle_Hook: enter numeric degrees, minutes, seconds.";
+            return;
+          }
+
+          AngleHookRow.Value = hookDecimal;
+          if (!string.IsNullOrWhiteSpace(hookDecimal))
+          {
+            rows.Add(AngleHookRow.ToValue());
+          }
         }
 
         foreach (DimensionRow segment in DimensionRows)
         {
-          if (!segment.TryAngleDecimal(out _))
+          if (segment.Visible
+              && !SetTypeEditorService.IsVarValue(segment.AngleDegrees)
+              && !segment.TryAngleDecimal(out _))
           {
             Status = $"{segment.Index}_Angle: enter numeric degrees, minutes, seconds.";
             return;
           }
+
+          rows.AddRange(segment.ToSaveValues());
         }
 
-        AngleRow.Value = angleDecimal;
-        List<ShapeParameterValue> rows = new() { CurveRow.ToValue(), AngleRow.ToValue() };
-        foreach (DimensionRow segment in DimensionRows)
+        List<string>? l1 = MappedLTextsForSave(1);
+        List<string>? l2 = MappedLTextsForSave(2);
+        List<string>? l3 = MappedLTextsForSave(3);
+        Status = await RevitTaskRun.Async(_uiapp, uiapp =>
         {
-          rows.AddRange(segment.ToValues());
-        }
+          UIDocument uidoc = uiapp.ActiveUIDocument ?? throw new InvalidOperationException("No active document.");
+          return SetTypeEditorService.SaveShape(uidoc, folder, typeName, rows, l1, l2, l3).ToMessage();
+        });
+        RevitTaskRun.Wake(_uiapp);
+      }
+      catch (Exception ex)
+      {
+        Status = ex.Message;
+      }
+    }
+
+    [RelayCommand]
+    private async Task DisallowJoinBeams()
+    {
+      try
+      {
         Status = await RevitTaskRun.Async(_uiapp, uiapp =>
         {
           Document doc = RequireProject(uiapp);
-          return SetTypeEditorService.SaveShape(doc, folder, typeName, rows).ToMessage();
+          return SetTypeEditorService.DisallowJoinAllBeams(doc);
         });
+        RevitTaskRun.Wake(_uiapp);
       }
       catch (Exception ex)
       {
@@ -491,29 +616,40 @@ namespace NMKRebar.ViewModels
     {
       try
       {
-        Dictionary<string, int> actuals = await RevitTaskRun.Async(_uiapp, uiapp =>
+        (Dictionary<string, int> actuals, Dictionary<string, int> shapes) = await RevitTaskRun.Async(_uiapp, uiapp =>
         {
           Document doc = RequireProject(uiapp);
-          return SetTypeRebarCountService.CountBarsByBarTypeName(doc);
+          return (
+            SetTypeRebarCountService.CountBarsByBarTypeName(doc),
+            SetTypeRebarCountService.CountShapesByRebarTypeName(doc));
         });
 
-        int match = 0;
-        int mismatch = 0;
+        int both = 0;
+        int site = 0;
+        int none = 0;
+        int shapeTotal = 0;
         foreach (SetTypeListItem item in _allTypeItems)
         {
           actuals.TryGetValue(item.TypeName, out int count);
           item.ApplyActual(count);
-          if (item.CheckState == SetTypeQtyCheckState.Match)
+          shapes.TryGetValue(item.TypeName, out int shapeCount);
+          item.ApplyShape(shapeCount);
+          shapeTotal += shapeCount;
+          if (item.CheckState == SetTypeQtyCheckState.BothMatch)
           {
-            match++;
+            both++;
           }
-          else if (item.CheckState == SetTypeQtyCheckState.Mismatch)
+          else if (item.CheckState == SetTypeQtyCheckState.SiteMatch)
           {
-            mismatch++;
+            site++;
+          }
+          else if (item.CheckState == SetTypeQtyCheckState.NoneMatch)
+          {
+            none++;
           }
         }
 
-        Status = $"Check: {match} OK, {mismatch} mismatch ({_allTypeItems.Count} type(s)).";
+        Status = $"Check: {both} rebar, {site} site, {none} miss, {shapeTotal} NMK_Rebar_Shape ({_allTypeItems.Count} type(s)).";
       }
       catch (Exception ex)
       {
@@ -628,6 +764,7 @@ namespace NMKRebar.ViewModels
         });
 
         Status = $"Selected {count} instance(s) of {typeName}.";
+        await LoadShapeAsync();
         RevitTaskRun.Wake(_uiapp);
       }
       catch (Autodesk.Revit.Exceptions.OperationCanceledException)
@@ -689,6 +826,39 @@ namespace NMKRebar.ViewModels
       catch (Autodesk.Revit.Exceptions.OperationCanceledException)
       {
         Status = "Selection cancelled.";
+      }
+      catch (Exception ex)
+      {
+        Status = ex.Message;
+      }
+    }
+
+    [RelayCommand]
+    private void AddVarries()
+    {
+      _ = AddVarriesAsync();
+    }
+
+    private async Task AddVarriesAsync()
+    {
+      try
+      {
+        SaveFolder();
+        string folder = DataFolder;
+        if (string.IsNullOrWhiteSpace(folder) || !Directory.Exists(folder))
+        {
+          throw new InvalidOperationException("Select the folder that contains Varries.csv.");
+        }
+
+        string typeName = RequireType();
+        IReadOnlyList<SetRebarVariesService.VarriesMappedLGroup> groups = SetRebarVariesService.LoadMappedLGroups(folder);
+        int filled = ApplyVarriesToTable(typeName, groups);
+        if (filled == 0)
+        {
+          throw new InvalidOperationException($"Varries.csv has no 1/2/3 values for '{typeName}'.");
+        }
+
+        Status = $"Add Varries: filled {filled} value(s) into 1L / 2L / 3L. SET to write.";
       }
       catch (Exception ex)
       {
@@ -764,10 +934,46 @@ namespace NMKRebar.ViewModels
         {
           axisTexts = ZRows.Select(row => row.Text).ToList();
         }
+        else if (string.Equals(SelectedRevertXyzAxis, "1L", StringComparison.OrdinalIgnoreCase))
+        {
+          axisTexts = ZRows.Select(row => row.L1).ToList();
+        }
+        else if (string.Equals(SelectedRevertXyzAxis, "2L", StringComparison.OrdinalIgnoreCase))
+        {
+          axisTexts = ZRows.Select(row => row.L2).ToList();
+        }
+        else if (string.Equals(SelectedRevertXyzAxis, "3L", StringComparison.OrdinalIgnoreCase))
+        {
+          axisTexts = ZRows.Select(row => row.L3).ToList();
+        }
 
         SetTypeEditorService.RevertXyzResult reverted = SetTypeEditorService.RevertXyz(
           SelectedRevertXyzAxis,
           axisTexts);
+        if (string.Equals(reverted.Axis, "1L", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(reverted.Axis, "2L", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(reverted.Axis, "3L", StringComparison.OrdinalIgnoreCase))
+        {
+          for (int i = 0; i < ZRows.Count; i++)
+          {
+            string text = i < reverted.DisplayTexts.Count ? reverted.DisplayTexts[i] ?? string.Empty : string.Empty;
+            if (string.Equals(reverted.Axis, "1L", StringComparison.OrdinalIgnoreCase))
+            {
+              ZRows[i].L1 = text;
+            }
+            else if (string.Equals(reverted.Axis, "2L", StringComparison.OrdinalIgnoreCase))
+            {
+              ZRows[i].L2 = text;
+            }
+            else
+            {
+              ZRows[i].L3 = text;
+            }
+          }
+
+          Status = reverted.Message;
+          return;
+        }
         IReadOnlyList<string> encoded = ZInputParser.EncodeSpacingsForDisplay(
           reverted.Values,
           SetTypeEditorService.ZCount);
@@ -916,10 +1122,7 @@ namespace NMKRebar.ViewModels
         Status = await RevitTaskRun.Async(_uiapp, uiapp =>
         {
           Document doc = RequireProject(uiapp);
-          List<ShapeParameterValue> rows = SetTypeEditorService.LoadShapeParameters(doc, folder, source)
-            .Where(row => !string.Equals(row.Name, "d", StringComparison.OrdinalIgnoreCase))
-            .ToList();
-          return SetTypeEditorService.SaveShape(doc, folder, target, rows).ToMessage();
+          return SetTypeEditorService.CopyShapeExceptDiameter(doc, folder, source, target).ToMessage();
         });
         await LoadShapeAsync();
       }
@@ -950,6 +1153,35 @@ namespace NMKRebar.ViewModels
           return SetTypeEditorService.CopyShapesByNameReplace(doc, folder, typeNames, from, to);
         });
         await LoadShapeAsync();
+      }
+      catch (Exception ex)
+      {
+        Status = ex.Message;
+      }
+    }
+
+    [RelayCommand]
+    private void ChangeSelectedInstancesToType()
+    {
+      _ = ChangeSelectedInstancesToTypeAsync();
+    }
+
+    private async Task ChangeSelectedInstancesToTypeAsync()
+    {
+      try
+      {
+        string typeName = RequireType();
+        string message = await RevitTaskRun.Async(_uiapp, uiapp =>
+        {
+          UIDocument uidoc = uiapp.ActiveUIDocument ?? throw new InvalidOperationException("No active document.");
+          return SetTypeEditorService.ChangeSelectedArraysToType(uidoc, typeName);
+        });
+
+        if (!string.IsNullOrWhiteSpace(message))
+        {
+          Status = message;
+          RevitTaskRun.Wake(_uiapp);
+        }
       }
       catch (Exception ex)
       {
@@ -1001,7 +1233,7 @@ namespace NMKRebar.ViewModels
         Status = await RevitTaskRun.Async(_uiapp, uiapp =>
         {
           UIDocument uidoc = uiapp.ActiveUIDocument ?? throw new InvalidOperationException("No active document.");
-          return RenameViewByCadService.RenameSelectedViews(uidoc);
+          return RenameViewByCadService.RenameByViewFamilyType(uidoc, SelectedViewFamilyTypeName ?? string.Empty);
         });
         RevitTaskRun.Wake(_uiapp);
       }
@@ -1190,6 +1422,11 @@ namespace NMKRebar.ViewModels
             item.TypeName.Equals(loaded.TypeName, StringComparison.OrdinalIgnoreCase)).TypeName;
         }
 
+        await LoadShapeAsync();
+
+        AngleRow.Value = loaded.AngleText ?? string.Empty;
+        ApplyAngleDmsFromDecimal(AngleRow.Value);
+
         for (int i = 0; i < ZRows.Count; i++)
         {
           ZRows[i].Text = i < loaded.ZTexts.Count ? loaded.ZTexts[i] ?? string.Empty : string.Empty;
@@ -1232,10 +1469,24 @@ namespace NMKRebar.ViewModels
         List<string> texts = ZRows.Select(row => row.Text).ToList();
         List<string> xs = ZRows.Select(row => row.X).ToList();
         List<string> ys = ZRows.Select(row => row.Y).ToList();
+        string angleText = string.Empty;
+        if (!SetTypeEditorService.IsVarValue(AngleDegrees)
+            && !SetTypeEditorService.IsVarValue(AngleMinutes)
+            && !SetTypeEditorService.IsVarValue(AngleSeconds))
+        {
+          if (!AngleDms.TryCombine(AngleDegrees, AngleMinutes, AngleSeconds, out angleText))
+          {
+            Status = "Angle: enter numeric degrees, minutes, seconds.";
+            return;
+          }
+
+          AngleRow.Value = angleText;
+        }
+
         Status = await RevitTaskRun.Async(_uiapp, uiapp =>
         {
           UIDocument uidoc = uiapp.ActiveUIDocument ?? throw new InvalidOperationException("No active document.");
-          return SetTypeEditorService.SetZOnSelection(uidoc, texts, xs, ys).ToMessage();
+          return SetTypeEditorService.SetZOnSelection(uidoc, texts, xs, ys, angleText).ToMessage();
         });
 
         RevitTaskRun.Wake(_uiapp);
@@ -1244,6 +1495,201 @@ namespace NMKRebar.ViewModels
       {
         Status = ex.Message;
       }
+    }
+
+    [RelayCommand]
+    private void RefreshZ()
+    {
+      _ = RefreshZAsync();
+    }
+
+    private async Task RefreshZAsync()
+    {
+      try
+      {
+        Status = await RevitTaskRun.Async(_uiapp, uiapp =>
+        {
+          UIDocument uidoc = uiapp.ActiveUIDocument ?? throw new InvalidOperationException("No active document.");
+          return SetTypeEditorService.SetXyzZerosOnSelection(uidoc).ToMessage();
+        });
+
+        RevitTaskRun.Wake(_uiapp);
+      }
+      catch (Exception ex)
+      {
+        Status = ex.Message;
+      }
+    }
+
+    [RelayCommand]
+    private void Select1L()
+    {
+      _ = SelectMappedLAsync("1L");
+    }
+
+    [RelayCommand]
+    private void Select2L()
+    {
+      _ = SelectMappedLAsync("2L");
+    }
+
+    [RelayCommand]
+    private void Select3L()
+    {
+      _ = SelectMappedLAsync("3L");
+    }
+
+    private async Task SelectMappedLAsync(string prefix)
+    {
+      try
+      {
+        List<string> lengths = await RevitTaskRun.Async(_uiapp, uiapp =>
+        {
+          UIDocument uidoc = uiapp.ActiveUIDocument ?? throw new InvalidOperationException("No active document.");
+          return SetTypeEditorService.MeasureDetailLineLengthsMm(
+            uidoc,
+            $"Select detail line(s) for {prefix}");
+        });
+
+        int count = Math.Min(lengths.Count, ZRows.Count);
+        for (int i = 0; i < count; i++)
+        {
+          if (prefix == "1L")
+          {
+            ZRows[i].L1 = lengths[i];
+          }
+          else if (prefix == "2L")
+          {
+            ZRows[i].L2 = lengths[i];
+          }
+          else
+          {
+            ZRows[i].L3 = lengths[i];
+          }
+        }
+
+        Status = $"{prefix}: loaded {lengths.Count} length(s) from detail line(s). SET to write.";
+        RevitTaskRun.Wake(_uiapp);
+      }
+      catch (Autodesk.Revit.Exceptions.OperationCanceledException)
+      {
+        Status = "Selection cancelled.";
+      }
+      catch (Exception ex)
+      {
+        Status = ex.Message;
+      }
+    }
+
+    private void ApplyMappedLToUi(IReadOnlyList<string> l1, IReadOnlyList<string> l2, IReadOnlyList<string> l3)
+    {
+      IReadOnlyList<string> trim1 = SetTypeEditorService.TrimMappedLForGet(l1);
+      IReadOnlyList<string> trim2 = SetTypeEditorService.TrimMappedLForGet(l2);
+      IReadOnlyList<string> trim3 = SetTypeEditorService.TrimMappedLForGet(l3);
+      for (int i = 0; i < ZRows.Count; i++)
+      {
+        ZRows[i].L1 = i < trim1.Count ? trim1[i] ?? string.Empty : string.Empty;
+        ZRows[i].L2 = i < trim2.Count ? trim2[i] ?? string.Empty : string.Empty;
+        ZRows[i].L3 = i < trim3.Count ? trim3[i] ?? string.Empty : string.Empty;
+      }
+
+      ApplyCombinedL(1, l1);
+      ApplyCombinedL(2, l2);
+      ApplyCombinedL(3, l3);
+    }
+
+    private void ApplyCombinedL(int index, IReadOnlyList<string> texts)
+    {
+      DimensionRow? row = DimensionRows.FirstOrDefault(item => item.Index == index);
+      if (row != null)
+      {
+        row.L = SetTypeEditorService.CombineMappedLGroup(texts);
+      }
+    }
+
+    private int ApplyVarriesToTable(string typeName, IReadOnlyList<SetRebarVariesService.VarriesMappedLGroup> groups)
+    {
+      int filled = 0;
+      bool exact = groups.Any(group =>
+        group.TypeName.Equals(typeName, StringComparison.OrdinalIgnoreCase) && group.Values.Count > 0);
+      foreach (SetRebarVariesService.VarriesMappedLGroup group in groups)
+      {
+        bool match = exact
+          ? group.TypeName.Equals(typeName, StringComparison.OrdinalIgnoreCase)
+          : SetRebarVariesService.TypeNameEquals(group.TypeName, typeName);
+        if (!match || group.Values.Count == 0)
+        {
+          continue;
+        }
+
+        for (int i = 0; i < ZRows.Count; i++)
+        {
+          string text = i < group.Values.Count ? group.Values[i] ?? string.Empty : string.Empty;
+          if (group.Group == 1)
+          {
+            ZRows[i].L1 = text;
+          }
+          else if (group.Group == 2)
+          {
+            ZRows[i].L2 = text;
+          }
+          else if (group.Group == 3)
+          {
+            ZRows[i].L3 = text;
+          }
+        }
+
+        filled += Math.Min(group.Values.Count, ZRows.Count);
+        DimensionRow? row = DimensionRows.FirstOrDefault(item => item.Index == group.Group);
+        if (row != null)
+        {
+          row.Visible = true;
+          row.L = SetTypeEditorService.VarText;
+        }
+      }
+
+      return filled;
+    }
+
+    private List<string>? BuildMappedLSetTexts(int segmentIndex)
+    {
+      DimensionRow? row = DimensionRows.FirstOrDefault(item => item.Index == segmentIndex);
+      if (row == null || !row.Visible)
+      {
+        return null;
+      }
+
+      if (SetTypeEditorService.IsVarValue(row.L))
+      {
+        return ZRows.Select(item =>
+          segmentIndex == 1 ? item.L1 : segmentIndex == 2 ? item.L2 : item.L3).ToList();
+      }
+
+      if (!VerticalCsvService.TryParseNumber(row.L, out _))
+      {
+        return null;
+      }
+
+      string same = row.L.Trim();
+      return Enumerable.Repeat(same, SetTypeEditorService.ZCount).ToList();
+    }
+
+    private List<string>? MappedLTextsForSave(int segmentIndex)
+    {
+      List<string>? fromGroup = BuildMappedLSetTexts(segmentIndex);
+      if (fromGroup != null)
+      {
+        return fromGroup;
+      }
+
+      List<string> table = ZRows.Select(item =>
+        segmentIndex == 1 ? item.L1 : segmentIndex == 2 ? item.L2 : item.L3).ToList();
+      if (table.Any(text => !string.IsNullOrWhiteSpace(text)))
+      {
+        return table;
+      }
+
+      return null;
     }
 
     partial void OnDataFolderChanged(string value)
@@ -1290,6 +1736,11 @@ namespace NMKRebar.ViewModels
           Document doc = RequireProject(uiapp);
           return SetTypeEditorService.CollectTypeNames(doc, folder).ToList();
         });
+        List<string> viewTypes = await RevitTaskRun.Async(_uiapp, uiapp =>
+        {
+          Document doc = RequireProject(uiapp);
+          return SetTypeEditorService.CollectViewFamilyTypeNames(doc);
+        });
 
         Dictionary<string, int> expected = RebarTxtQuantityService.LoadExpectedQuantities(folder);
         _allTypeItems.Clear();
@@ -1307,6 +1758,7 @@ namespace NMKRebar.ViewModels
 
         ApplyTypeFilter(keepSelection: false, keep);
         RefreshSameShapeTypes();
+        RefreshViewFamilyTypes(viewTypes);
         await LoadShapeAsync();
         string? varies = SetRebarVariesService.FindVariesFile(folder, SelectedTypeName ?? string.Empty);
         int txtFiles = RebarTxtQuantityService.EnumerateTxtFiles(folder).Count;
@@ -1389,6 +1841,29 @@ namespace NMKRebar.ViewModels
       SameShapeTypeText = selected ?? string.Empty;
       _syncingSameShapeType = false;
     }
+
+    private void RefreshViewFamilyTypes(IReadOnlyList<string> names)
+    {
+      string? keep = SelectedViewFamilyTypeName ?? _savedViewFamilyTypeName;
+      ViewFamilyTypeNames.Clear();
+      foreach (string name in names)
+      {
+        ViewFamilyTypeNames.Add(name);
+      }
+
+      string? selected = null;
+      if (!string.IsNullOrWhiteSpace(keep))
+      {
+        selected = ViewFamilyTypeNames.FirstOrDefault(name =>
+          name.Equals(keep, StringComparison.OrdinalIgnoreCase));
+      }
+
+      selected ??= ViewFamilyTypeNames.FirstOrDefault();
+      SelectedViewFamilyTypeName = selected;
+      _savedViewFamilyTypeName = string.Empty;
+    }
+
+    partial void OnSelectedViewFamilyTypeNameChanged(string? value) => SaveFolder();
 
     partial void OnSelectedSameShapeTypeChanged(string? value)
     {
@@ -1592,7 +2067,10 @@ namespace NMKRebar.ViewModels
       string bending = SetTypeEditorService.FormatStraightBendingMm(_barDiameterMm.Value);
       foreach (DimensionRow segment in DimensionRows)
       {
-        segment.Bending = bending;
+        if (!SetTypeEditorService.IsVarValue(segment.Bending))
+        {
+          segment.Bending = bending;
+        }
       }
 
       return true;
@@ -1617,8 +2095,38 @@ namespace NMKRebar.ViewModels
       return false;
     }
 
+    private void ApplyAngleHookDmsFromDecimal(string decimalDegrees)
+    {
+      if (SetTypeEditorService.IsVarValue(decimalDegrees))
+      {
+        AngleHookDegrees = SetTypeEditorService.VarText;
+        AngleHookMinutes = string.Empty;
+        AngleHookSeconds = string.Empty;
+        return;
+      }
+
+      AngleDms.Split(decimalDegrees, out string degrees, out string minutes, out string seconds);
+      AngleHookDegrees = degrees;
+      AngleHookMinutes = minutes;
+      AngleHookSeconds = seconds;
+    }
+
+    private void ClearAngleHookDms()
+    {
+      AngleHookDegrees = string.Empty;
+      AngleHookMinutes = string.Empty;
+      AngleHookSeconds = string.Empty;
+    }
+
     private void ApplyAngleDmsFromDecimal(string decimalDegrees)
     {
+      if (SetTypeEditorService.IsVarValue(decimalDegrees))
+      {
+        AngleDegrees = SetTypeEditorService.VarText;
+        AngleMinutes = string.Empty;
+        AngleSeconds = string.Empty;
+        return;
+      }
       AngleDms.Split(decimalDegrees, out string degrees, out string minutes, out string seconds);
       AngleDegrees = degrees;
       AngleMinutes = minutes;
@@ -1638,7 +2146,9 @@ namespace NMKRebar.ViewModels
       {
         CurveRow.Value = "No";
         AngleRow.Value = string.Empty;
+        AngleHookRow.Value = string.Empty;
         ClearAngleDms();
+        ClearAngleHookDms();
         _barDiameterMm = null;
         foreach (DimensionRow segment in DimensionRows)
         {
@@ -1674,6 +2184,10 @@ namespace NMKRebar.ViewModels
             ? angle.Value ?? string.Empty
             : string.Empty;
           ApplyAngleDmsFromDecimal(AngleRow.Value);
+          AngleHookRow.Value = values.TryGetValue("Angle_Hook", out ShapeParameterValue hook)
+            ? hook.Value ?? string.Empty
+            : string.Empty;
+          ApplyAngleHookDmsFromDecimal(AngleHookRow.Value);
           foreach (DimensionRow segment in DimensionRows)
           {
             segment.LoadFrom(values);
@@ -1683,6 +2197,13 @@ namespace NMKRebar.ViewModels
         {
           _loadingShape = false;
         }
+
+        (IReadOnlyList<string> l1, IReadOnlyList<string> l2, IReadOnlyList<string> l3) = await RevitTaskRun.Async(_uiapp, uiapp =>
+        {
+          Document doc = RequireProject(uiapp);
+          return SetTypeEditorService.LoadMappedLFromType(doc, typeName);
+        });
+        ApplyMappedLToUi(l1, l2, l3);
 
         if (SetTypeEditorService.TryResolveBarDiameterMm(typeName, values, out double diameterMm))
         {
@@ -1774,6 +2295,7 @@ namespace NMKRebar.ViewModels
       settings.SameShape2From = SameShape2From ?? string.Empty;
       settings.SameShape2To = SameShape2To ?? string.Empty;
       settings.AddXyBlock = AddXyBlock;
+      settings.LastViewFamilyTypeName = SelectedViewFamilyTypeName ?? string.Empty;
       settings.LastSameShapeTypeName = SelectedSameShapeType ?? SameShapeTypeText ?? string.Empty;
       settings.PlaceOneCoupler = PlaceOneCoupler;
       settings.LastCouplerFamilyName = SelectedCouplerFamilyName ?? string.Empty;

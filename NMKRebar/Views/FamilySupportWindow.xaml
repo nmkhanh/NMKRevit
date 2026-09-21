@@ -5,9 +5,9 @@
   xmlns:icon="clr-namespace:Material.Icons.WPF;assembly=Material.Icons.WPF"
   Title="NMK Rebar — Family Support"
   Width="640"
-  Height="480"
+  Height="720"
   MinWidth="520"
-  MinHeight="400"
+  MinHeight="420"
   WindowStartupLocation="CenterOwner">
   <Window.Resources>
     <ResourceDictionary>
@@ -125,6 +125,71 @@
             MinWidth="240"
             MinHeight="36"
             HorizontalAlignment="Left"
+            Margin="0,0,0,8"
+            Command="{Binding UpdateToolFamilyCommand}">
+            <StackPanel Orientation="Horizontal">
+              <icon:MaterialIcon
+                Width="18"
+                Height="18"
+                Margin="0,0,8,0"
+                Kind="HammerWrench"
+                Foreground="White" />
+              <TextBlock VerticalAlignment="Center" Foreground="White" Text="Update Tool Family" />
+            </StackPanel>
+          </Button>
+          <Button
+            MinWidth="240"
+            MinHeight="36"
+            HorizontalAlignment="Left"
+            Margin="0,0,0,8"
+            Command="{Binding UpdateChildCommand}">
+            <StackPanel Orientation="Horizontal">
+              <icon:MaterialIcon
+                Width="18"
+                Height="18"
+                Margin="0,0,8,0"
+                Kind="FileTree"
+                Foreground="White" />
+              <TextBlock VerticalAlignment="Center" Foreground="White" Text="Update Child" />
+            </StackPanel>
+          </Button>
+          <Button
+            MinWidth="240"
+            MinHeight="36"
+            HorizontalAlignment="Left"
+            Margin="0,0,0,8"
+            Command="{Binding UpdateMainCommand}">
+            <StackPanel Orientation="Horizontal">
+              <icon:MaterialIcon
+                Width="18"
+                Height="18"
+                Margin="0,0,8,0"
+                Kind="HomeOutline"
+                Foreground="White" />
+              <TextBlock VerticalAlignment="Center" Foreground="White" Text="Update Main" />
+            </StackPanel>
+          </Button>
+          <Button
+            MinWidth="240"
+            MinHeight="36"
+            HorizontalAlignment="Left"
+            Margin="0,0,0,8"
+            Command="{Binding MapBeamCommand}">
+            <StackPanel Orientation="Horizontal">
+              <icon:MaterialIcon
+                Width="18"
+                Height="18"
+                Margin="0,0,8,0"
+                Kind="VectorLine"
+                Foreground="White" />
+              <TextBlock VerticalAlignment="Center" Foreground="White" Text="Map Beam" />
+            </StackPanel>
+          </Button>
+          <Button
+            MinWidth="240"
+            MinHeight="36"
+            HorizontalAlignment="Left"
+            Margin="0,0,0,8"
             Command="{Binding MapVToVisibleCommand}">
             <StackPanel Orientation="Horizontal">
               <icon:MaterialIcon
@@ -134,6 +199,21 @@
                 Kind="LinkVariant"
                 Foreground="White" />
               <TextBlock VerticalAlignment="Center" Foreground="White" Text="Map V to Visible_n" />
+            </StackPanel>
+          </Button>
+          <Button
+            MinWidth="240"
+            MinHeight="36"
+            HorizontalAlignment="Left"
+            Command="{Binding RemoveVisibleNCommand}">
+            <StackPanel Orientation="Horizontal">
+              <icon:MaterialIcon
+                Width="18"
+                Height="18"
+                Margin="0,0,8,0"
+                Kind="TrashCanOutline"
+                Foreground="White" />
+              <TextBlock VerticalAlignment="Center" Foreground="White" Text="Remove Visible_n" />
             </StackPanel>
           </Button>
         </StackPanel>

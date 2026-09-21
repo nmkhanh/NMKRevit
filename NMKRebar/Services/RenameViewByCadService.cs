@@ -9,12 +9,42 @@ namespace NMKRebar.Services
   {
     public static string RenameSelectedViews(UIDocument uidoc)
     {
-      Document doc = uidoc.Document;
-      if (doc.IsFamilyDocument)
+      return RenameViews(uidoc, CollectSelectedOrActiveViews(uidoc));
+    }
+
+    public static string RenameByViewFamilyType(UIDocument uidoc, string viewFamilyTypeName)
+    {
+      if (string.IsNullOrWhiteSpace(viewFamilyTypeName))
       {
-        throw new InvalidOperationException("Rename View by CAD runs in a project document.");
+        throw new InvalidOperationException("Select a ViewFamilyType.");
       }
 
+      Document doc = uidoc.Document;
+      ViewFamilyType? familyType = new FilteredElementCollector(doc)
+        .OfClass(typeof(ViewFamilyType))
+        .Cast<ViewFamilyType>()
+        .FirstOrDefault(type => type.Name.Equals(viewFamilyTypeName, StringComparison.OrdinalIgnoreCase));
+      if (familyType == null)
+      {
+        throw new InvalidOperationException($"ViewFamilyType '{viewFamilyTypeName}' was not found.");
+      }
+
+      List<View> views = new FilteredElementCollector(doc)
+        .OfClass(typeof(View))
+        .Cast<View>()
+        .Where(view => !view.IsTemplate && view.GetTypeId() == familyType.Id)
+        .ToList();
+      if (views.Count == 0)
+      {
+        throw new InvalidOperationException($"No views use ViewFamilyType '{viewFamilyTypeName}'.");
+      }
+
+      return RenameViews(uidoc, views);
+    }
+
+    private static List<View> CollectSelectedOrActiveViews(UIDocument uidoc)
+    {
+      Document doc = uidoc.Document;
       List<View> views = uidoc.Selection.GetElementIds()
         .Select(doc.GetElement)
         .OfType<View>()
@@ -25,9 +55,20 @@ namespace NMKRebar.Services
         views.Add(doc.ActiveView);
       }
 
+      return views;
+    }
+
+    private static string RenameViews(UIDocument uidoc, List<View> views)
+    {
+      Document doc = uidoc.Document;
+      if (doc.IsFamilyDocument)
+      {
+        throw new InvalidOperationException("Rename View by CAD runs in a project document.");
+      }
+
       if (views.Count == 0)
       {
-        throw new InvalidOperationException("Select a view (or activate a view).");
+        throw new InvalidOperationException("No views to rename.");
       }
 
       int renamed = 0;

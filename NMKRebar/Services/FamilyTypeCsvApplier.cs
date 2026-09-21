@@ -38,7 +38,13 @@ namespace NMKRebar.Services
         {
           if (FindParameter(fm, parameterName) == null)
           {
-            fm.AddParameter(parameterName, FamilyParameterGroups.Dimensions(), InferSpec(parameterName), false);
+            bool other = !FamilyParameterGroups.KeepInDimensions(parameterName);
+            FamilyParameterGroups.AddFamilyParameter(
+              fm,
+              parameterName,
+              InferSpec(parameterName),
+              isInstance: false,
+              other ? FamilyParameterGroups.ParameterBucket.Other : FamilyParameterGroups.ParameterBucket.Dimensions);
             result.ParametersAdded++;
           }
         }
@@ -82,17 +88,19 @@ namespace NMKRebar.Services
 
     private static void EnsureSegments6To10(FamilyManager fm, FamilyTypeCsvApplyResult result)
     {
-      for (int n = 6; n <= 10; n++)
+      for (int n = SetTypeEditorService.DimensionStart; n <= SetTypeEditorService.DimensionEnd; n++)
       {
-        EnsureParameter(fm, $"{n}_Bending", SpecTypeId.Length, false, result);
-        EnsureParameter(fm, $"{n}_L", SpecTypeId.Length, false, result);
-        EnsureParameter(fm, $"{n}_Angle", SpecTypeId.Angle, false, result);
-        EnsureParameter(fm, $"{n}_V", SpecTypeId.Boolean.YesNo, false, result);
+        EnsureParameter(fm, $"{n}_Bending", SpecTypeId.Length, true, result);
+        EnsureParameter(fm, $"{n}_L", SpecTypeId.Length, true, result);
+        EnsureParameter(fm, $"{n}_Angle", SpecTypeId.Angle, true, result);
+        EnsureParameter(fm, $"{n}_V", SpecTypeId.Boolean.YesNo, true, result);
         EnsureParameter(fm, $"{n}_V_", SpecTypeId.Boolean.YesNo, true, result);
         EnsureParameter(fm, $"{n}_V_Curve", SpecTypeId.Boolean.YesNo, true, result);
         EnsureParameter(fm, $"{n}_L_Curve", SpecTypeId.Length, true, result);
         EnsureParameter(fm, $"Curve_{n}", SpecTypeId.Boolean.YesNo, true, result);
       }
+
+      EnsureParameter(fm, "Angle_Hook", SpecTypeId.Angle, true, result);
     }
 
     private static void EnsureParameter(

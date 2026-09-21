@@ -228,14 +228,11 @@ namespace NMKRebar.Services
   {
     public static List<FamilySymbol> CollectArraySymbols(Document doc)
     {
-      Family? family = new FilteredElementCollector(doc)
-        .OfClass(typeof(Family))
-        .Cast<Family>()
-        .FirstOrDefault(item => item.Name.Equals(RebarTypeCreateService.ArrayFamilyName, StringComparison.OrdinalIgnoreCase));
+      Family? family = RebarTypeCreateService.FindArrayFamily(doc);
 
       if (family == null)
       {
-        throw new InvalidOperationException($"Family '{RebarTypeCreateService.ArrayFamilyName}' is not loaded in this project.");
+        throw new InvalidOperationException($"Family '{RebarTypeCreateService.ArrayFamilyName}' (Structural Framing) is not loaded in this project.");
       }
 
       return family.GetFamilySymbolIds()

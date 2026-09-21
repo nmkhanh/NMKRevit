@@ -8,15 +8,17 @@ namespace NMKRebar.ViewModels
   public enum SetTypeQtyCheckState
   {
     NotChecked,
-    Match,
-    Mismatch
+    BothMatch,
+    SiteMatch,
+    NoneMatch
   }
 
   public partial class SetTypeListItem : ObservableObject
   {
-    private static readonly MediaBrush DefaultNameBrush = CreateFrozenBrush(0x11, 0x18, 0x27);
-    private static readonly MediaBrush MatchNameBrush = CreateFrozenBrush(0x16, 0xA3, 0x4A);
-    private static readonly MediaBrush MismatchNameBrush = CreateFrozenBrush(0xDC, 0x26, 0x26);
+    private static readonly MediaBrush DefaultNameBrush = CreateFrozenBrush(0xE5, 0xE7, 0xEB);
+    private static readonly MediaBrush BothMatchBrush = CreateFrozenBrush(0x8D, 0xB6, 0x00);
+    private static readonly MediaBrush SiteMatchBrush = CreateFrozenBrush(0x25, 0x63, 0xEB);
+    private static readonly MediaBrush NoneMatchBrush = CreateFrozenBrush(0xDC, 0x26, 0x26);
 
     public SetTypeListItem(string typeName)
     {
@@ -32,18 +34,24 @@ namespace NMKRebar.ViewModels
     private int? _actualQty;
 
     [ObservableProperty]
+    private int? _shapeQty;
+
+    [ObservableProperty]
     private SetTypeQtyCheckState _checkState = SetTypeQtyCheckState.NotChecked;
 
     public MediaBrush NameBrush => CheckState switch
     {
-      SetTypeQtyCheckState.Match => MatchNameBrush,
-      SetTypeQtyCheckState.Mismatch => MismatchNameBrush,
+      SetTypeQtyCheckState.BothMatch => BothMatchBrush,
+      SetTypeQtyCheckState.SiteMatch => SiteMatchBrush,
+      SetTypeQtyCheckState.NoneMatch => NoneMatchBrush,
       _ => DefaultNameBrush
     };
 
     public string ExpectedQtyText => ExpectedQty.HasValue ? ExpectedQty.Value.ToString() : "—";
 
     public string ActualQtyText => ActualQty.HasValue ? ActualQty.Value.ToString() : "—";
+
+    public string ShapeQtyText => ShapeQty.HasValue ? ShapeQty.Value.ToString() : "—";
 
     partial void OnExpectedQtyChanged(int? value)
     {
@@ -57,6 +65,12 @@ namespace NMKRebar.ViewModels
       RefreshCheckState();
     }
 
+    partial void OnShapeQtyChanged(int? value)
+    {
+      OnPropertyChanged(nameof(ShapeQtyText));
+      RefreshCheckState();
+    }
+
     partial void OnCheckStateChanged(SetTypeQtyCheckState value)
     {
       OnPropertyChanged(nameof(NameBrush));
@@ -65,32 +79,51 @@ namespace NMKRebar.ViewModels
     public void ResetCheck()
     {
       ActualQty = null;
+      ShapeQty = null;
       CheckState = SetTypeQtyCheckState.NotChecked;
     }
 
     public void ApplyActual(int? actual)
     {
       ActualQty = actual;
-      RefreshCheckState();
+    }
+
+    public void ApplyShape(int? shape)
+    {
+      ShapeQty = shape;
     }
 
     private void RefreshCheckState()
     {
-      if (!ActualQty.HasValue)
+      if (!ActualQty.HasValue || !ShapeQty.HasValue)
       {
         CheckState = SetTypeQtyCheckState.NotChecked;
         return;
       }
 
-      if (!ExpectedQty.HasValue)
+      int rebar = ActualQty.Value;
+      int site = ShapeQty.Value;
+      if (rebar == 0 && site == 0)
       {
-        CheckState = SetTypeQtyCheckState.Mismatch;
+        CheckState = SetTypeQtyCheckState.NotChecked;
         return;
       }
 
-      CheckState = ExpectedQty.Value == ActualQty.Value
-        ? SetTypeQtyCheckState.Match
-        : SetTypeQtyCheckState.Mismatch;
+      bool rebarOk = ExpectedQty.HasValue && rebar == ExpectedQty.Value;
+      bool siteOk = ExpectedQty.HasValue && site == ExpectedQty.Value;
+      if (rebarOk)
+      {
+        CheckState = SetTypeQtyCheckState.BothMatch;
+        return;
+      }
+
+      if (siteOk)
+      {
+        CheckState = SetTypeQtyCheckState.SiteMatch;
+        return;
+      }
+
+      CheckState = SetTypeQtyCheckState.NoneMatch;
     }
 
     private static SolidColorBrush CreateFrozenBrush(byte r, byte g, byte b)

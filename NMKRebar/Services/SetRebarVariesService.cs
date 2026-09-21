@@ -4,6 +4,7 @@ using Autodesk.Revit.UI.Selection;
 using System.Globalization;
 using System.IO;
 using System.Text;
+using System.Text.RegularExpressions;
 
 namespace NMKRebar.Services
 {
@@ -18,8 +19,8 @@ namespace NMKRebar.Services
 
     public bool AllowElement(Element elem)
     {
-      return elem is FamilyInstance instance
-        && instance.Symbol?.Family?.Name.Equals(RebarTypeCreateService.ArrayFamilyName, StringComparison.OrdinalIgnoreCase) == true
+      return CreateRebarByLineService.IsRebarArrayInstance(elem)
+        && elem is FamilyInstance instance
         && instance.Symbol != null
         && _baseTypeNames.Contains(instance.Symbol.Name);
     }
@@ -67,6 +68,36 @@ namespace NMKRebar.Services
     public const string FileName = "Varries.csv";
     public const string VariesFilePrefix = "TypeShape_Varies_";
     private const int SlotCount = 50;
+    private static readonly Regex TrailingDiameterSuffix = new(
+      @"_?D\d+(?:\.\d+)?\s*$",
+      RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled);
+
+    public static bool TypeNameEquals(string csvType, string selectedType)
+    {
+      if (string.IsNullOrWhiteSpace(csvType) || string.IsNullOrWhiteSpace(selectedType))
+      {
+        return false;
+      }
+
+      if (csvType.Equals(selectedType, StringComparison.OrdinalIgnoreCase))
+      {
+        return true;
+      }
+
+      string stripped = StripTrailingDiameterSuffix(selectedType);
+      return stripped.Length > 0
+        && csvType.Equals(stripped, StringComparison.OrdinalIgnoreCase);
+    }
+
+    public static string StripTrailingDiameterSuffix(string typeName)
+    {
+      if (string.IsNullOrWhiteSpace(typeName))
+      {
+        return string.Empty;
+      }
+
+      return TrailingDiameterSuffix.Replace(typeName.Trim(), string.Empty, 1).TrimEnd('_', ' ');
+    }
 
     public static string? FindVariesFile(string folder, string typeName)
     {
@@ -133,6 +164,190 @@ namespace NMKRebar.Services
       return values;
     }
 
+    public sealed class VarriesMappedLGroup
+    {
+      public VarriesMappedLGroup(string typeName, int group, IReadOnlyList<string> values)
+      {
+        TypeName = typeName;
+        Group = group;
+        Values = values;
+      }
+
+      public string TypeName { get; }
+
+      public int Group { get; }
+
+      public IReadOnlyList<string> Values { get; }
+    }
+
+    public static IReadOnlyList<VarriesMappedLGroup> LoadMappedLGroups(string folder)
+    {
+      string? path = FindVarriesPath(folder);
+      if (path == null)
+      {
+        throw new InvalidOperationException($"Varries.csv was not found in:\n{folder}");
+      }
+
+      string[] lines = VerticalCsvService.ReadAllLinesShared(path)
+        .Select(line => line.TrimEnd())
+        .ToArray();
+      int headerIndex = IndexOfNonEmptyLine(lines, 0);
+      int groupIndex = IndexOfNonEmptyLine(lines, headerIndex + 1);
+      if (headerIndex < 0 || groupIndex < 0)
+      {
+        throw new InvalidOperationException($"{Path.GetFileName(path)} needs a TYPE row and a 1/2/3 row.");
+      }
+
+      IReadOnlyList<string> header = VerticalCsvService.ParseCsvLine(lines[headerIndex]);
+      IReadOnlyList<string> groups = VerticalCsvService.ParseCsvLine(lines[groupIndex]);
+      int startCol = HeaderStartColumn(header);
+      var buckets = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
+      var order = new List<string>();
+      for (int col = startCol; col < header.Count; col++)
+      {
+        string typeName = col < header.Count ? header[col].Trim() : string.Empty;
+        if (string.IsNullOrWhiteSpace(typeName) || !TryParseMappedLGroup(col < groups.Count ? groups[col] : string.Empty, out int group))
+        {
+          continue;
+        }
+
+        string key = typeName + "\n" + group.ToString(CultureInfo.InvariantCulture);
+        if (!buckets.TryGetValue(key, out List<string>? values))
+        {
+          values = new List<string>();
+          buckets[key] = values;
+          order.Add(key);
+        }
+
+        for (int i = groupIndex + 1; i < lines.Length; i++)
+        {
+          IReadOnlyList<string> cells = VerticalCsvService.ParseCsvLine(lines[i]);
+          if (IsEmptyCsvRow(cells, startCol))
+          {
+            continue;
+          }
+
+          string raw = col < cells.Count ? cells[col] : string.Empty;
+          string number = NormalizeCsvNumber(raw);
+          if (string.IsNullOrWhiteSpace(number))
+          {
+            continue;
+          }
+
+          values.Add(number);
+        }
+      }
+
+      var list = new List<VarriesMappedLGroup>();
+      foreach (string key in order)
+      {
+        int split = key.LastIndexOf('\n');
+        list.Add(new VarriesMappedLGroup(
+          key.Substring(0, split),
+          int.Parse(key.Substring(split + 1), CultureInfo.InvariantCulture),
+          buckets[key]));
+      }
+
+      if (list.Count == 0)
+      {
+        throw new InvalidOperationException($"{Path.GetFileName(path)} has no TYPE + 1/2/3 columns.");
+      }
+
+      return list;
+    }
+
+    private static int IndexOfNonEmptyLine(IReadOnlyList<string> lines, int start)
+    {
+      for (int i = start; i < lines.Count; i++)
+      {
+        if (!string.IsNullOrWhiteSpace(lines[i]))
+        {
+          return i;
+        }
+      }
+
+      return -1;
+    }
+
+    private static bool IsEmptyCsvRow(IReadOnlyList<string> cells, int startCol)
+    {
+      for (int i = startCol; i < cells.Count; i++)
+      {
+        if (!string.IsNullOrWhiteSpace(cells[i]))
+        {
+          return false;
+        }
+      }
+
+      return true;
+    }
+
+    private static bool TryParseMappedLGroup(string raw, out int group)
+    {
+      group = 0;
+      string text = (raw ?? string.Empty).Trim();
+      if (text.Length == 0)
+      {
+        return false;
+      }
+
+      if (text.StartsWith("1L", StringComparison.OrdinalIgnoreCase) || text == "1")
+      {
+        group = 1;
+        return true;
+      }
+
+      if (text.StartsWith("2L", StringComparison.OrdinalIgnoreCase) || text == "2")
+      {
+        group = 2;
+        return true;
+      }
+
+      if (text.StartsWith("3L", StringComparison.OrdinalIgnoreCase) || text == "3")
+      {
+        group = 3;
+        return true;
+      }
+
+      return int.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out group)
+        && group is 1 or 2 or 3;
+    }
+
+    private static string NormalizeCsvNumber(string? raw)
+    {
+      if (string.IsNullOrWhiteSpace(raw))
+      {
+        return string.Empty;
+      }
+
+      var chars = new StringBuilder(raw.Length);
+      foreach (char c in raw)
+      {
+        if (!char.IsWhiteSpace(c))
+        {
+          chars.Append(c);
+        }
+      }
+
+      string compact = chars.ToString();
+      if (compact.Length == 0)
+      {
+        return string.Empty;
+      }
+
+      if (VerticalCsvService.TryParseNumber(compact, out double mm) && Math.Abs(mm) >= 0.0005)
+      {
+        if (Math.Abs(mm - Math.Round(mm)) < 0.0001)
+        {
+          return Math.Round(mm).ToString(CultureInfo.InvariantCulture);
+        }
+
+        return mm.ToString("0.###", CultureInfo.InvariantCulture);
+      }
+
+      return string.Empty;
+    }
+
     public static IReadOnlyDictionary<string, string> FindVariesFiles(string folder)
     {
       var map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
@@ -165,6 +380,14 @@ namespace NMKRebar.Services
       for (int i = 0; i < names.Count; i++)
       {
         if (names[i].Equals(typeName, StringComparison.OrdinalIgnoreCase))
+        {
+          return i;
+        }
+      }
+
+      for (int i = 0; i < names.Count; i++)
+      {
+        if (TypeNameEquals(names[i], typeName))
         {
           return i;
         }

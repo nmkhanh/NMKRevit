@@ -58,16 +58,27 @@ namespace NMKRebar.Services
 
     public static CopyAndAddParaResult Apply(Document doc)
     {
+      return Apply(doc, copyElements: true, mapCount: Count);
+    }
+
+    public static CopyAndAddParaResult MapExisting(Document doc, int mapCount = 1)
+    {
+      return Apply(doc, copyElements: false, mapCount: mapCount);
+    }
+
+    public static CopyAndAddParaResult Apply(Document doc, bool copyElements, int mapCount)
+    {
       if (!doc.IsFamilyDocument)
       {
         throw new InvalidOperationException("NMKCopyAndAddPara runs in a family document.");
       }
 
+      int targetCount = mapCount < 1 ? 1 : mapCount;
       var result = new CopyAndAddParaResult();
       FamilyManager fm = doc.FamilyManager;
       ForgeTypeId general = FamilyParameterGroups.General();
 
-      using (var tx = new Transaction(doc, "NMK Copy And Add Para"))
+      using (var tx = new Transaction(doc, copyElements ? "NMK Copy And Add Para" : "NMK Map Beam"))
       {
         tx.Start();
         EnsureCurrentType(fm);
@@ -97,32 +108,39 @@ namespace NMKRebar.Services
           throw new InvalidOperationException("No copyable model element was found in this family.");
         }
 
-        Element source = elements[0];
-        while (elements.Count < Count)
+        if (copyElements)
         {
-          ICollection<ElementId> copied = ElementTransformUtils.CopyElement(doc, source.Id, XYZ.Zero);
-          foreach (ElementId id in copied)
+          Element source = elements[0];
+          while (elements.Count < targetCount)
           {
-            Element? copiedElement = doc.GetElement(id);
-            if (copiedElement != null && IsCopyableModelElement(copiedElement))
+            ICollection<ElementId> copied = ElementTransformUtils.CopyElement(doc, source.Id, XYZ.Zero);
+            foreach (ElementId id in copied)
             {
-              elements.Add(copiedElement);
-              result.InstancesCopied++;
+              Element? copiedElement = doc.GetElement(id);
+              if (copiedElement != null && IsCopyableModelElement(copiedElement))
+              {
+                elements.Add(copiedElement);
+                result.InstancesCopied++;
+              }
+            }
+
+            if (copied.Count == 0)
+            {
+              result.Warnings.Add($"CopyElement returned no ids from {source.Id}.");
+              break;
             }
           }
 
-          if (copied.Count == 0)
+          doc.Regenerate();
+          elements = CollectModelElements(doc).Take(targetCount).ToList();
+          if (elements.Count < targetCount)
           {
-            result.Warnings.Add($"CopyElement returned no ids from {source.Id}.");
-            break;
+            result.Warnings.Add($"Expected {targetCount} model elements, found {elements.Count}.");
           }
         }
-
-        doc.Regenerate();
-        elements = CollectModelElements(doc).Take(Count).ToList();
-        if (elements.Count < Count)
+        else
         {
-          result.Warnings.Add($"Expected {Count} model elements, found {elements.Count}.");
+          elements = elements.Take(targetCount).ToList();
         }
 
         for (int i = 0; i < elements.Count; i++)

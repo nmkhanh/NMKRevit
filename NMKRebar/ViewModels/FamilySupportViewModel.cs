@@ -131,6 +131,100 @@ namespace NMKRebar.ViewModels
     }
 
     [RelayCommand]
+    private async Task UpdateToolFamily()
+    {
+      try
+      {
+        string message = await RevitTask.RunAsync(uiapp =>
+        {
+          Document doc = RequireFamilyDocument(uiapp);
+          return FamilyUpdateToolService.Apply(doc).ToMessage();
+        });
+
+        Status = message;
+      }
+      catch (Exception ex)
+      {
+        Status = ex.Message;
+      }
+    }
+
+    [RelayCommand]
+    private async Task UpdateChild()
+    {
+      try
+      {
+        string message = await RevitTask.RunAsync(uiapp =>
+        {
+          UIDocument uidoc = uiapp.ActiveUIDocument
+            ?? throw new InvalidOperationException("No active document.");
+          if (!uidoc.Document.IsFamilyDocument)
+          {
+            throw new InvalidOperationException("Family Support runs in a family document only.");
+          }
+
+          return FamilyUpdateChildService.Apply(uidoc).ToMessage();
+        });
+
+        Status = message;
+      }
+      catch (Exception ex)
+      {
+        Status = ex.Message;
+      }
+    }
+
+    [RelayCommand]
+    private async Task UpdateMain()
+    {
+      try
+      {
+        string message = await RevitTask.RunAsync(uiapp =>
+        {
+          UIDocument uidoc = uiapp.ActiveUIDocument
+            ?? throw new InvalidOperationException("No active document.");
+          if (!uidoc.Document.IsFamilyDocument)
+          {
+            throw new InvalidOperationException("Family Support runs in a family document only.");
+          }
+
+          return FamilyUpdateMainService.Apply(uidoc).ToMessage();
+        });
+
+        Status = message;
+      }
+      catch (Exception ex)
+      {
+        Status = ex.Message;
+      }
+    }
+
+    [RelayCommand]
+    private async Task MapBeam()
+    {
+      try
+      {
+        string message = await RevitTask.RunAsync(uiapp =>
+        {
+          UIDocument uidoc = uiapp.ActiveUIDocument
+            ?? throw new InvalidOperationException("No active document.");
+          if (!uidoc.Document.IsFamilyDocument)
+          {
+            throw new InvalidOperationException("Family Support runs in a family document only.");
+          }
+
+          return MapBeamService.Apply(uidoc).ToMessage();
+        });
+
+        Status = message;
+      }
+      catch (Exception ex)
+      {
+        Status = ex.Message;
+      }
+    }
+
+    [RelayCommand]
     private async Task MapVToVisible()
     {
       try
@@ -139,6 +233,25 @@ namespace NMKRebar.ViewModels
         {
           Document doc = RequireFamilyDocument(uiapp);
           return MapVToVisibleService.Apply(doc).ToMessage();
+        });
+
+        Status = message;
+      }
+      catch (Exception ex)
+      {
+        Status = ex.Message;
+      }
+    }
+
+    [RelayCommand]
+    private async Task RemoveVisibleN()
+    {
+      try
+      {
+        string message = await RevitTask.RunAsync(uiapp =>
+        {
+          Document doc = RequireFamilyDocument(uiapp);
+          return RemoveVisibleNService.Apply(doc).ToMessage();
         });
 
         Status = message;

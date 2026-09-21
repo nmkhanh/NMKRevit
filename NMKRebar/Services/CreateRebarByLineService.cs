@@ -104,7 +104,7 @@ namespace NMKRebar.Services
     public static bool IsRebarArrayInstance(Element elem)
     {
       return elem is FamilyInstance instance
-        && instance.Symbol?.Family?.Name.Equals(RebarTypeCreateService.ArrayFamilyName, StringComparison.OrdinalIgnoreCase) == true;
+        && RebarTypeCreateService.IsArrayFamily(instance.Symbol?.Family);
     }
 
     public static bool IsRebarShapeInstance(Element elem)
@@ -405,6 +405,8 @@ namespace NMKRebar.Services
             }
 
             RebarBarType barType = FindRebarBarType(doc, typeName);
+            log.AppendLine($"TYPE {typeName} arrays={arrays.Count} shapes={instances.Count} all={request.AllFilteredTypes}");
+            /* VARIES create path — restore later
             bool hasVaries = SetRebarVariesService.FindVariesFile(request.Folder, typeName) != null;
             log.AppendLine($"TYPE {typeName} arrays={arrays.Count} shapes={instances.Count} varies={hasVaries} all={request.AllFilteredTypes}");
             double diameterMm = hasVaries ? BarDiameterMm(barType, typeName) : 0;
@@ -470,6 +472,7 @@ namespace NMKRebar.Services
 
               continue;
             }
+            */
 
             foreach (FamilyInstance instance in instances)
             {
@@ -695,7 +698,7 @@ namespace NMKRebar.Services
       StringBuilder? log)
     {
       IList<Curve> extracted = ExtractCurves(instance);
-      IList<Curve> basePath = WeldEndpoints(SortIntoClockwiseCurveLoop(extracted, instance, out _));
+      IList<Curve> basePath = BuildRebarPath(extracted, instance, barType, out _);
       int segmentIndex = IndexOfNthLine(basePath, lineIndex);
       if (segmentIndex < 0)
       {
@@ -839,7 +842,7 @@ namespace NMKRebar.Services
     private static RevitRebar CreateOne(Document doc, Element host, FamilyInstance instance, RebarBarType barType, bool useFreeForm, StringBuilder? log = null)
     {
       IList<Curve> extracted = ExtractCurves(instance);
-      IList<Curve> path = WeldEndpoints(SortIntoClockwiseCurveLoop(extracted, instance, out XYZ normal));
+      IList<Curve> path = BuildRebarPath(extracted, instance, barType, out XYZ normal);
       if (log != null)
       {
         log.AppendLine();
@@ -920,6 +923,102 @@ namespace NMKRebar.Services
       }
 
       return ex.InnerException == null ? ex.Message : $"{ex.Message} ({ex.InnerException.Message})";
+    }
+
+    private static IList<Curve> BuildRebarPath(
+      IList<Curve> extracted,
+      FamilyInstance instance,
+      RebarBarType? barType,
+      out XYZ normal)
+    {
+      IList<Curve> path = WeldEndpoints(SortIntoClockwiseCurveLoop(extracted, instance, out normal));
+      if (TryGetBarDiameterMm(barType, instance, out double diameterMm))
+      {
+        path = ReplaceThreeDiameterFilletArcsWithCorners(path, diameterMm);
+        path = WeldEndpoints(path);
+      }
+
+      return path;
+    }
+
+    private static bool TryGetBarDiameterMm(RebarBarType? barType, FamilyInstance instance, out double diameterMm)
+    {
+      diameterMm = 0;
+      if (barType != null)
+      {
+        try
+        {
+          diameterMm = BarDiameterMm(barType, instance.Symbol?.Name ?? string.Empty);
+          if (diameterMm > 1e-6)
+          {
+            return true;
+          }
+        }
+        catch (InvalidOperationException)
+        {
+        }
+      }
+
+      Parameter? parameter = instance.LookupParameter("d")
+        ?? instance.LookupParameter("D")
+        ?? (instance.SuperComponent as FamilyInstance)?.LookupParameter("d")
+        ?? (instance.SuperComponent as FamilyInstance)?.LookupParameter("D");
+      if (parameter != null && parameter.StorageType == StorageType.Double && parameter.AsDouble() > 1e-9)
+      {
+        diameterMm = UnitUtils.ConvertFromInternalUnits(parameter.AsDouble(), UnitTypeId.Millimeters);
+        return diameterMm > 1e-6;
+      }
+
+      return SetTypeEditorService.TryParseBarDiameterMm(instance.Symbol?.Name ?? string.Empty, out diameterMm)
+        && diameterMm > 1e-6;
+    }
+
+    private static IList<Curve> ReplaceThreeDiameterFilletArcsWithCorners(IList<Curve> path, double diameterMm)
+    {
+      if (path.Count < 3 || diameterMm <= 1e-6)
+      {
+        return path;
+      }
+
+      double targetRadius = UnitUtils.ConvertToInternalUnits(3.0 * diameterMm, UnitTypeId.Millimeters);
+      double tolerance = Math.Max(UnitUtils.ConvertToInternalUnits(2.0, UnitTypeId.Millimeters), targetRadius * 0.05);
+      var items = path.Select(curve => curve.Clone()).ToList();
+      for (int guard = 0; guard < items.Count + 2; guard++)
+      {
+        bool dropped = false;
+        for (int i = 0; i < items.Count; i++)
+        {
+          if (items[i] is not Arc arc || Math.Abs(arc.Radius - targetRadius) > tolerance)
+          {
+            continue;
+          }
+
+          int prev = (i - 1 + items.Count) % items.Count;
+          int next = (i + 1) % items.Count;
+          if (prev == next || items[prev] is not Line prevLine || items[next] is not Line nextLine)
+          {
+            continue;
+          }
+
+          if (!TryJoinAtCorner(prevLine, nextLine, out Line first, out Line second))
+          {
+            continue;
+          }
+
+          items[prev] = first;
+          items[next] = second;
+          items.RemoveAt(i);
+          dropped = true;
+          break;
+        }
+
+        if (!dropped)
+        {
+          break;
+        }
+      }
+
+      return items;
     }
 
     private static IList<Curve> SortIntoClockwiseCurveLoop(IList<Curve> source, FamilyInstance instance, out XYZ normal)
@@ -1133,7 +1232,7 @@ namespace NMKRebar.Services
       XYZ normal;
       try
       {
-        path = SortIntoClockwiseCurveLoop(extracted, instance, out normal);
+        path = BuildRebarPath(extracted, instance, barType: null, out normal);
       }
       catch (Exception ex)
       {

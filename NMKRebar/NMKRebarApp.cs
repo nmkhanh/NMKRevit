@@ -54,7 +54,7 @@ namespace NMKRebar
           assemblyPath,
           "NMKRebar.Commands.NMKCreateRebarTypeCommand")
         {
-          ToolTip = "Project document: create RebarBarType and NMK_Rebar_Array types from Rebar.txt."
+          ToolTip = "Project document: create RebarBarType and NMK_Rebar_Array (Structural Framing) types from Rebar.txt."
         });
         projectPanel.AddItem(new PushButtonData(
           "NMKSetType",

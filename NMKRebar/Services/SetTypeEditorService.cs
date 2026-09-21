@@ -47,6 +47,8 @@ namespace NMKRebar.Services
 
     public List<string> Warnings { get; } = new();
 
+    public Dictionary<string, List<int>> VarriesGroups { get; } = new(StringComparer.OrdinalIgnoreCase);
+
     public string ToMessage()
     {
       var text = new StringBuilder();
@@ -77,8 +79,9 @@ namespace NMKRebar.Services
     /// <summary>Instance Z &gt; 0 hides nested bar; unused slots are set to this (mm).</summary>
     public const double ZUnusedHideValueMm = 100;
 
-    public const int DimensionStart = 0;
+    public const int DimensionStart = -1;
     public const int DimensionEnd = 10;
+    public const string VarText = "var";
 
     private static readonly Regex BarDiameterInName = new(
       @"_D(\d+(?:\.\d+)?)\s*$",
@@ -88,21 +91,32 @@ namespace NMKRebar.Services
       @"D\d+(?:\.\d+)?\s*$",
       RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled);
 
-    public static readonly string[] DimensionParameterNames =
+    public static IReadOnlyList<string> DimensionParameterNames
     {
-      "Curve",
-      "0_V", "0_Angle", "0_Bending", "0_L",
-      "1_V", "1_Angle", "1_Bending", "1_L",
-      "2_V", "2_Angle", "2_Bending", "2_L",
-      "3_V", "3_Angle", "3_Bending", "3_L",
-      "4_V", "4_Angle", "4_Bending", "4_L",
-      "5_V", "5_Angle", "5_Bending", "5_L",
-      "6_V", "6_Angle", "6_Bending", "6_L",
-      "7_V", "7_Angle", "7_Bending", "7_L",
-      "8_V", "8_Angle", "8_Bending", "8_L",
-      "9_V", "9_Angle", "9_Bending", "9_L",
-      "10_V", "10_Angle", "10_Bending", "10_L"
-    };
+      get
+      {
+        var names = new List<string> { "Curve", "Angle", "Angle_Hook", "d" };
+        for (int n = DimensionStart; n <= DimensionEnd; n++)
+        {
+          names.Add($"{n}_V");
+          names.Add($"{n}_Angle");
+          names.Add($"{n}_Bending");
+          names.Add($"{n}_L");
+        }
+
+        return names;
+      }
+    }
+
+    public static bool IsVarValue(string? text)
+    {
+      return string.Equals((text ?? string.Empty).Trim(), VarText, StringComparison.OrdinalIgnoreCase);
+    }
+
+    public static bool IsInstanceShapeName(string name)
+    {
+      return string.Equals(name, "Angle", StringComparison.OrdinalIgnoreCase);
+    }
 
     public static List<ShapeParameterValue> LoadShapeParameters(Document doc, string folder, string typeName)
     {
@@ -110,8 +124,14 @@ namespace NMKRebar.Services
       FamilySymbol? symbol = FindArraySymbol(doc, typeName);
       int typeIndex = csv == null ? -1 : VerticalCsvService.IndexOfType(csv, typeName);
       var rows = new List<ShapeParameterValue>();
-      foreach (string name in DimensionParameterNames.Concat(new[] { "d", "Angle" }))
+      foreach (string name in DimensionParameterNames)
       {
+        if (IsInstanceShapeName(name))
+        {
+          rows.Add(new ShapeParameterValue(name, string.Empty, false));
+          continue;
+        }
+
         Parameter? parameter = symbol?.LookupParameter(name);
         string value = parameter != null
           ? CsvValueConverter.GetDisplayValue(parameter)
@@ -132,7 +152,141 @@ namespace NMKRebar.Services
         rows.Add(new ShapeParameterValue(name, value, isYesNo));
       }
 
+      ApplyMappedLGroupToShapeRows(symbol, rows);
       return rows;
+    }
+
+    public static (IReadOnlyList<string> L1, IReadOnlyList<string> L2, IReadOnlyList<string> L3) LoadMappedLFromType(Document doc, string typeName)
+    {
+      FamilySymbol? symbol = FindArraySymbol(doc, typeName);
+      Element? target = (Element?)symbol
+        ?? CollectArrayInstances(doc, typeName).FirstOrDefault();
+      if (target == null)
+      {
+        return (Array.Empty<string>(), Array.Empty<string>(), Array.Empty<string>());
+      }
+
+      return (
+        LoadMappedLTexts(target, "1L"),
+        LoadMappedLTexts(target, "2L"),
+        LoadMappedLTexts(target, "3L"));
+    }
+
+    public static string CombineMappedLGroup(IReadOnlyList<string> texts)
+    {
+      IReadOnlyList<string> compact = CompactMappedLValues(texts);
+      if (compact.Count == 0)
+      {
+        return string.Empty;
+      }
+
+      if (compact.All(value => string.Equals(value, compact[0], StringComparison.OrdinalIgnoreCase)))
+      {
+        return compact[0];
+      }
+
+      return VarText;
+    }
+
+    public static IReadOnlyList<string> TrimMappedLForGet(IReadOnlyList<string> texts)
+    {
+      List<string> compact = CompactMappedLValues(texts).ToList();
+      if (compact.Count <= 1)
+      {
+        return Array.Empty<string>();
+      }
+
+      int start = compact.Count - 1;
+      while (start > 0
+        && string.Equals(compact[start], compact[start - 1], StringComparison.OrdinalIgnoreCase))
+      {
+        start--;
+      }
+
+      int run = compact.Count - start;
+      if (run < 2)
+      {
+        return compact;
+      }
+
+      if (start == 0)
+      {
+        return Array.Empty<string>();
+      }
+
+      return compact.Take(start).ToList();
+    }
+
+    private static List<string> CompactMappedLValues(IReadOnlyList<string> texts)
+    {
+      var values = new List<string>();
+      foreach (string text in texts ?? Array.Empty<string>())
+      {
+        string raw = (text ?? string.Empty).Trim();
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+          continue;
+        }
+
+        if (VerticalCsvService.TryParseNumber(raw, out double mm))
+        {
+          if (Math.Abs(mm) < 0.0005)
+          {
+            continue;
+          }
+
+          values.Add(FormatMm(mm));
+          continue;
+        }
+
+        values.Add(raw);
+      }
+
+      return values;
+    }
+
+    private static void ApplyMappedLGroupToShapeRows(FamilySymbol? symbol, List<ShapeParameterValue> rows)
+    {
+      if (symbol == null)
+      {
+        return;
+      }
+
+      ReplaceShapeRow(rows, "1_L", CombineMappedLGroup(LoadMappedLTexts(symbol, "1L")));
+      ReplaceShapeRow(rows, "2_L", CombineMappedLGroup(LoadMappedLTexts(symbol, "2L")));
+      ReplaceShapeRow(rows, "3_L", CombineMappedLGroup(LoadMappedLTexts(symbol, "3L")));
+    }
+
+    private static void ReplaceShapeRow(List<ShapeParameterValue> rows, string name, string value)
+    {
+      int index = rows.FindIndex(row => string.Equals(row.Name, name, StringComparison.OrdinalIgnoreCase));
+      var next = new ShapeParameterValue(name, value, false);
+      if (index >= 0)
+      {
+        rows[index] = next;
+        return;
+      }
+
+      rows.Add(next);
+    }
+
+    public static string CombineDisplayValues(IReadOnlyList<string> values)
+    {
+      var distinct = values
+        .Select(value => (value ?? string.Empty).Trim())
+        .Distinct(StringComparer.OrdinalIgnoreCase)
+        .ToList();
+      if (distinct.Count == 0)
+      {
+        return string.Empty;
+      }
+
+      if (distinct.Count == 1)
+      {
+        return distinct[0];
+      }
+
+      return VarText;
     }
 
     public static bool TryParseBarDiameterMm(string typeName, out double mm)
@@ -228,10 +382,32 @@ namespace NMKRebar.Services
     }
 
     public static SetTypeEditorResult SaveShape(
+      UIDocument uidoc,
+      string folder,
+      string typeName,
+      IReadOnlyList<ShapeParameterValue> rows,
+      IReadOnlyList<string>? l1Texts = null,
+      IReadOnlyList<string>? l2Texts = null,
+      IReadOnlyList<string>? l3Texts = null)
+    {
+      SetTypeEditorResult result = SaveShape(uidoc.Document, folder, typeName, rows, l1Texts, l2Texts, l3Texts);
+      List<FamilyInstance> instances = CollectArrayInstances(uidoc.Document, typeName);
+      if (instances.Count > 0)
+      {
+        uidoc.Selection.SetElementIds(instances.Select(instance => instance.Id).ToList());
+      }
+
+      return result;
+    }
+
+    public static SetTypeEditorResult SaveShape(
       Document doc,
       string folder,
       string typeName,
-      IReadOnlyList<ShapeParameterValue> rows)
+      IReadOnlyList<ShapeParameterValue> rows,
+      IReadOnlyList<string>? l1Texts = null,
+      IReadOnlyList<string>? l2Texts = null,
+      IReadOnlyList<string>? l3Texts = null)
     {
       FamilySymbol symbol = FindArraySymbol(doc, typeName)
         ?? throw new InvalidOperationException($"NMK_Rebar_Array type '{typeName}' was not found.");
@@ -245,30 +421,112 @@ namespace NMKRebar.Services
           symbol.Activate();
         }
 
-        foreach (ShapeParameterValue row in rows)
+        IList<Element> targets = new List<Element> { symbol };
+        foreach (Element target in targets)
         {
-          Parameter? parameter = symbol.LookupParameter(row.Name);
-          if (parameter == null)
+          int setOnTarget = 0;
+          foreach (ShapeParameterValue row in rows)
           {
-            if (!string.IsNullOrWhiteSpace(row.Value))
+            if (IsInstanceShapeName(row.Name)
+                || IsVarValue(row.Value)
+                || string.IsNullOrWhiteSpace(row.Value))
             {
-              result.Warnings.Add($"'{typeName}' has no parameter '{row.Name}'.");
+              continue;
             }
 
-            continue;
+            Parameter? parameter = target.LookupParameter(row.Name);
+            if (parameter == null)
+            {
+              if (!string.IsNullOrWhiteSpace(row.Value) && ReferenceEquals(target, targets[0]))
+              {
+                result.Warnings.Add($"'{typeName}' has no parameter '{row.Name}'.");
+              }
+
+              continue;
+            }
+
+            if (CsvValueConverter.TrySetParameter(parameter, row.Value, result.Warnings))
+            {
+              setOnTarget++;
+              result.ValuesSet++;
+            }
           }
 
-          if (CsvValueConverter.TrySetParameter(parameter, row.Value, result.Warnings))
+          if (setOnTarget > 0 && target is FamilySymbol)
           {
-            result.ValuesSet++;
+            result.InstancesUpdated++;
+          }
+        }
+
+        SetMappedLColumn(symbol, "1L", l1Texts, result);
+        SetMappedLColumn(symbol, "2L", l2Texts, result);
+        SetMappedLColumn(symbol, "3L", l3Texts, result);
+
+        tx.Commit();
+      }
+
+      SaveShapeCsv(
+        folder,
+        typeName,
+        rows.Where(row => !IsVarValue(row.Value) && !IsInstanceShapeName(row.Name)).ToList());
+      return result;
+    }
+
+    public static SetTypeEditorResult CopyShapeExceptDiameter(
+      Document doc,
+      string folder,
+      string sourceTypeName,
+      string targetTypeName)
+    {
+      List<ShapeParameterValue> rows = LoadShapeParameters(doc, folder, sourceTypeName)
+        .Where(row => !string.Equals(row.Name, "d", StringComparison.OrdinalIgnoreCase)
+          && !IsInstanceShapeName(row.Name))
+        .ToList();
+      (IReadOnlyList<string> l1, IReadOnlyList<string> l2, IReadOnlyList<string> l3) =
+        LoadMappedLFromType(doc, sourceTypeName);
+      return SaveShape(doc, folder, targetTypeName, rows, l1, l2, l3);
+    }
+
+    public static string DisallowJoinAllBeams(Document doc)
+    {
+      if (doc.IsFamilyDocument)
+      {
+        throw new InvalidOperationException("Disallow Join runs in a project document.");
+      }
+
+      List<FamilyInstance> framing = new FilteredElementCollector(doc)
+        .OfClass(typeof(FamilyInstance))
+        .OfCategory(BuiltInCategory.OST_StructuralFraming)
+        .WhereElementIsNotElementType()
+        .Cast<FamilyInstance>()
+        .ToList();
+
+      int ends = 0;
+      using (var tx = new Transaction(doc, "NMK Disallow Beam Join"))
+      {
+        tx.Start();
+        foreach (FamilyInstance beam in framing)
+        {
+          for (int end = 0; end <= 1; end++)
+          {
+            try
+            {
+              if (StructuralFramingUtils.IsJoinAllowedAtEnd(beam, end))
+              {
+                StructuralFramingUtils.DisallowJoinAtEnd(beam, end);
+                ends++;
+              }
+            }
+            catch
+            {
+            }
           }
         }
 
         tx.Commit();
       }
 
-      SaveShapeCsv(folder, typeName, rows);
-      return result;
+      return $"Disallow join: {ends} end(s) on {framing.Count} beam(s).";
     }
 
     public static string CopyShapesByNameReplace(
@@ -327,10 +585,7 @@ namespace NMKRebar.Services
 
         try
         {
-          List<ShapeParameterValue> rows = LoadShapeParameters(doc, folder, sourceSymbol.Name)
-            .Where(row => !string.Equals(row.Name, "d", StringComparison.OrdinalIgnoreCase))
-            .ToList();
-          SetTypeEditorResult saved = SaveShape(doc, folder, targetName, rows);
+          SetTypeEditorResult saved = CopyShapeExceptDiameter(doc, folder, sourceSymbol.Name, targetName);
           copied++;
           warnings.AddRange(saved.Warnings.Select(warning => $"{sourceSymbol.Name} → {targetName}: {warning}"));
         }
@@ -367,6 +622,14 @@ namespace NMKRebar.Services
 
       public IReadOnlyList<string> YTexts { get; set; } = Array.Empty<string>();
 
+      public IReadOnlyList<string> L1Texts { get; set; } = Array.Empty<string>();
+
+      public IReadOnlyList<string> L2Texts { get; set; } = Array.Empty<string>();
+
+      public IReadOnlyList<string> L3Texts { get; set; } = Array.Empty<string>();
+
+      public string AngleText { get; set; } = string.Empty;
+
       public List<string> Warnings { get; } = new();
     }
 
@@ -397,6 +660,11 @@ namespace NMKRebar.Services
       result.ZTexts = ZInputParser.LoadZTextRowsFromInstance(instance, ZCount, result.Warnings);
       result.XTexts = LoadAxisTexts(instance, "X", ZCount);
       result.YTexts = LoadAxisTexts(instance, "Y", ZCount);
+      result.L1Texts = LoadMappedLTexts(instance, "1L");
+      result.L2Texts = LoadMappedLTexts(instance, "2L");
+      result.L3Texts = LoadMappedLTexts(instance, "3L");
+      Parameter? angle = instance.LookupParameter("Angle");
+      result.AngleText = angle == null ? string.Empty : CsvValueConverter.GetDisplayValue(angle);
       return result;
     }
 
@@ -539,6 +807,86 @@ namespace NMKRebar.Services
       return text;
     }
 
+    public static string ChangeSelectedArraysToType(UIDocument uidoc, string typeName)
+    {
+      Document doc = uidoc.Document;
+      if (doc.IsFamilyDocument)
+      {
+        throw new InvalidOperationException("Change type runs in a project document.");
+      }
+
+      if (string.IsNullOrWhiteSpace(typeName))
+      {
+        return string.Empty;
+      }
+
+      List<FamilyInstance> instances = uidoc.Selection.GetElementIds()
+        .Select(doc.GetElement)
+        .OfType<FamilyInstance>()
+        .Where(CreateRebarByLineService.IsRebarArrayInstance)
+        .GroupBy(instance => CreateRebarByLineService.IdValue(instance.Id))
+        .Select(group => group.First())
+        .ToList();
+      if (instances.Count == 0)
+      {
+        return string.Empty;
+      }
+
+      FamilySymbol symbol = FindArraySymbol(doc, typeName)
+        ?? throw new InvalidOperationException($"NMK_Rebar_Array type '{typeName}' was not found.");
+
+      int changed = 0;
+      var warnings = new List<string>();
+      using (var tx = new Transaction(doc, "NMK Change Array Type"))
+      {
+        tx.Start();
+        if (!symbol.IsActive)
+        {
+          symbol.Activate();
+        }
+
+        foreach (FamilyInstance instance in instances)
+        {
+          if (instance.Symbol != null && instance.Symbol.Id == symbol.Id)
+          {
+            continue;
+          }
+
+          try
+          {
+            instance.ChangeTypeId(symbol.Id);
+            changed++;
+          }
+          catch (Exception ex)
+          {
+            warnings.Add($"{instance.Id}: {ex.Message}");
+          }
+        }
+
+        if (changed == 0)
+        {
+          tx.RollBack();
+        }
+        else
+        {
+          tx.Commit();
+        }
+      }
+
+      if (changed == 0 && warnings.Count == 0)
+      {
+        return $"Selected instance(s) already type {typeName}.";
+      }
+
+      string text = $"Changed {changed}/{instances.Count} instance(s) to {typeName}.";
+      if (warnings.Count > 0)
+      {
+        text += " " + string.Join(" ", warnings.Take(3));
+      }
+
+      return text;
+    }
+
     public static int SelectType(
       UIDocument uidoc,
       IReadOnlyList<string> typeNames,
@@ -613,7 +961,8 @@ namespace NMKRebar.Services
       UIDocument uidoc,
       IReadOnlyList<string> zTexts,
       IReadOnlyList<string> xTexts,
-      IReadOnlyList<string> yTexts)
+      IReadOnlyList<string> yTexts,
+      string? angleText = null)
     {
       Document doc = uidoc.Document;
       if (doc.IsFamilyDocument)
@@ -625,16 +974,16 @@ namespace NMKRebar.Services
       Dictionary<int, double> values = ZInputParser.ParseCumulative(zTexts, ZCount, result.Warnings);
       bool setZ = values.Count > 0;
       bool setXy = HasAny(xTexts) || HasAny(yTexts);
-      if (!setZ && !setXy)
+      bool setAngle = !string.IsNullOrWhiteSpace(angleText) && !IsVarValue(angleText);
+      if (!setZ && !setXy && !setAngle)
       {
-        throw new InvalidOperationException("Enter Z values first (100 or 5x100), or X / Y (200 or 3x200).");
+        throw new InvalidOperationException("Enter Z values first (100 or 5x100), or X / Y (200 or 3x200), or Angle.");
       }
 
       List<FamilyInstance> instances = uidoc.Selection.GetElementIds()
         .Select(doc.GetElement)
         .OfType<FamilyInstance>()
-        .Where(instance =>
-          instance.Symbol?.Family?.Name.Equals(RebarTypeCreateService.ArrayFamilyName, StringComparison.OrdinalIgnoreCase) == true)
+        .Where(CreateRebarByLineService.IsRebarArrayInstance)
         .ToList();
       if (instances.Count == 0)
       {
@@ -664,7 +1013,7 @@ namespace NMKRebar.Services
               }
 
               string raw = values.TryGetValue(n, out double zValue)
-                ? zValue.ToString(System.Globalization.CultureInfo.InvariantCulture)
+                ? ZInputParser.FormatRounded(zValue)
                 : hideValueText;
 
               if (CsvValueConverter.TrySetParameter(parameter, raw, result.Warnings))
@@ -679,6 +1028,20 @@ namespace NMKRebar.Services
           bool hasY = HasAny(yTexts);
           setOnInstance += SetAxisColumn(instance, "X", xTexts, result, zeroIfEmpty: hasY && !hasX);
           setOnInstance += SetAxisColumn(instance, "Y", yTexts, result, zeroIfEmpty: hasX && !hasY);
+          if (setAngle)
+          {
+            Parameter? angle = instance.LookupParameter("Angle");
+            if (angle == null)
+            {
+              result.Warnings.Add($"'{instance.Id}' has no parameter Angle.");
+            }
+            else if (CsvValueConverter.TrySetParameter(angle, angleText!, result.Warnings))
+            {
+              setOnInstance++;
+              result.ValuesSet++;
+            }
+          }
+
           if (setOnInstance > 0)
           {
             result.InstancesUpdated++;
@@ -755,12 +1118,12 @@ namespace NMKRebar.Services
       var result = new AddXyDataResult { ToX = toX };
       foreach (double value in ApplySoleZs(ts, sole, start))
       {
-        result.ZValues.Add(FormatMm(value));
+        result.ZValues.Add(ZInputParser.FormatRounded(value));
       }
 
       foreach (double value in ApplySoleOffsets(offsets, sole, start))
       {
-        result.AxisValues.Add(FormatMm(value));
+        result.AxisValues.Add(ZInputParser.FormatRounded(value));
       }
 
       result.Filled = result.ZValues.Count + result.AxisValues.Count;
@@ -770,9 +1133,21 @@ namespace NMKRebar.Services
     public static RevertXyzResult RevertXyz(string axis, IReadOnlyList<string> axisTexts)
     {
       string key = (axis ?? "X").Trim().ToUpperInvariant();
-      if (key != "X" && key != "Y" && key != "Z")
+      if (key is not ("X" or "Y" or "Z" or "1L" or "2L" or "3L"))
       {
-        throw new InvalidOperationException("Choose X, Y, or Z.");
+        throw new InvalidOperationException("Choose X, Y, Z, 1L, 2L, or 3L.");
+      }
+
+      if (key is "1L" or "2L" or "3L")
+      {
+        List<string> reversed = ReverseNonZeroTexts(axisTexts);
+        int filled = reversed.Count(text => !string.IsNullOrWhiteSpace(text));
+        return new RevertXyzResult
+        {
+          Axis = key,
+          DisplayTexts = reversed,
+          Message = $"Reverted {key}: {filled} non-zero value(s) reversed. SET to write."
+        };
       }
 
       List<double> values = ZInputParser.ExpandInOrder(axisTexts, ZCount);
@@ -790,13 +1165,82 @@ namespace NMKRebar.Services
       };
     }
 
+    public static List<string> ReverseNonZeroTexts(IReadOnlyList<string> texts)
+    {
+      var result = (texts ?? Array.Empty<string>()).Select(text => text ?? string.Empty).ToList();
+      while (result.Count < ZCount)
+      {
+        result.Add(string.Empty);
+      }
+
+      var indexes = new List<int>();
+      var values = new List<string>();
+      for (int i = 0; i < result.Count; i++)
+      {
+        string text = result[i].Trim();
+        if (string.IsNullOrWhiteSpace(text))
+        {
+          continue;
+        }
+
+        if (VerticalCsvService.TryParseNumber(text, out double number) && Math.Abs(number) < 0.0005)
+        {
+          continue;
+        }
+
+        indexes.Add(i);
+        values.Add(result[i]);
+      }
+
+      if (values.Count == 0)
+      {
+        throw new InvalidOperationException("No non-zero 1L/2L/3L values to reverse.");
+      }
+
+      values.Reverse();
+      for (int i = 0; i < indexes.Count; i++)
+      {
+        result[indexes[i]] = values[i];
+      }
+
+      return result;
+    }
+
     public sealed class RevertXyzResult
     {
       public string Axis { get; set; } = "X";
 
       public List<double> Values { get; set; } = new();
 
+      public List<string> DisplayTexts { get; set; } = new();
+
       public string Message { get; set; } = string.Empty;
+    }
+
+    public static List<string> MeasureDetailLineLengthsMm(UIDocument uidoc, string prompt)
+    {
+      IList<Reference> picked = uidoc.Selection.PickObjects(
+        ObjectType.Element,
+        new DetailLineSelectionFilter(),
+        prompt);
+      var lengths = new List<string>();
+      Document doc = uidoc.Document;
+      foreach (Reference reference in picked)
+      {
+        if (doc.GetElement(reference) is not DetailLine line || line.GeometryCurve == null)
+        {
+          continue;
+        }
+
+        lengths.Add(FormatMm(ToMm(line.GeometryCurve.Length)));
+      }
+
+      if (lengths.Count == 0)
+      {
+        throw new InvalidOperationException("No detail line was selected.");
+      }
+
+      return lengths;
     }
 
     private static List<double> ApplySoleZs(IReadOnlyList<double> ts, bool sole, bool start)
@@ -903,8 +1347,7 @@ namespace NMKRebar.Services
           break;
         }
 
-        string display = CsvValueConverter.GetDisplayValue(parameter);
-        if (string.IsNullOrWhiteSpace(display) || !VerticalCsvService.TryParseNumber(display, out double mm))
+        if (!ZInputParser.TryReadLengthMm(parameter, out double mm))
         {
           break;
         }
@@ -950,7 +1393,7 @@ namespace NMKRebar.Services
         }
 
         string raw = values.TryGetValue(n, out double axisValue)
-          ? axisValue.ToString(CultureInfo.InvariantCulture)
+          ? ZInputParser.FormatRounded(axisValue)
           : "0";
         if (CsvValueConverter.TrySetParameter(parameter, raw, result.Warnings))
         {
@@ -962,7 +1405,77 @@ namespace NMKRebar.Services
       return set;
     }
 
-    private static bool HasAny(IReadOnlyList<string> texts)
+    private static int SetMappedLColumn(
+      Element instance,
+      string prefix,
+      IReadOnlyList<string>? texts,
+      SetTypeEditorResult result)
+    {
+      if (!HasAny(texts))
+      {
+        return 0;
+      }
+
+      int set = 0;
+      for (int n = 1; n <= ZCount; n++)
+      {
+        string raw = n - 1 < texts!.Count ? texts[n - 1] ?? string.Empty : string.Empty;
+        if (string.IsNullOrWhiteSpace(raw) || !VerticalCsvService.TryParseNumber(raw, out double mm))
+        {
+          continue;
+        }
+
+        Parameter? parameter = FindMappedL(instance, prefix, n);
+        if (parameter == null)
+        {
+          result.Warnings.Add($"'{instance.Id}' has no parameter {prefix}_{n}.");
+          continue;
+        }
+
+        if (CsvValueConverter.TrySetParameter(
+          parameter,
+          mm.ToString(CultureInfo.InvariantCulture),
+          result.Warnings))
+        {
+          set++;
+          result.ValuesSet++;
+        }
+      }
+
+      return set;
+    }
+
+    public static Parameter? FindMappedL(Element element, string prefix, int n)
+    {
+      return element.LookupParameter($"{prefix}_{n}") ?? element.LookupParameter($"{prefix}{n}");
+    }
+
+    public static IReadOnlyList<string> LoadMappedLTexts(Element instance, string prefix)
+    {
+      var list = new List<string>(ZCount);
+      for (int n = 1; n <= ZCount; n++)
+      {
+        Parameter? parameter = FindMappedL(instance, prefix, n);
+        if (parameter == null || !parameter.HasValue)
+        {
+          list.Add(string.Empty);
+          continue;
+        }
+
+        string display = CsvValueConverter.GetDisplayValue(parameter) ?? string.Empty;
+        if (VerticalCsvService.TryParseNumber(display, out double mm) && Math.Abs(mm) < 0.0005)
+        {
+          list.Add(string.Empty);
+          continue;
+        }
+
+        list.Add(display.Trim());
+      }
+
+      return list;
+    }
+
+    private static bool HasAny(IReadOnlyList<string>? texts)
     {
       return texts != null && texts.Any(text => !string.IsNullOrWhiteSpace(text));
     }
@@ -1003,6 +1516,34 @@ namespace NMKRebar.Services
       }
 
       return TrailingDiameterOnly.Replace(typeName.Trim(), string.Empty);
+    }
+
+    public static SetTypeEditorResult SetXyzZerosOnSelection(UIDocument uidoc)
+    {
+      var zeros = Enumerable.Repeat("0", ZCount).ToList();
+      return SetZOnSelection(uidoc, zeros, zeros, zeros);
+    }
+
+    public static List<FamilyInstance> CollectArrayInstances(Document doc, string typeName)
+    {
+      return new FilteredElementCollector(doc)
+        .OfClass(typeof(FamilyInstance))
+        .Cast<FamilyInstance>()
+        .Where(CreateRebarByLineService.IsRebarArrayInstance)
+        .Where(instance => instance.Symbol?.Name.Equals(typeName, StringComparison.OrdinalIgnoreCase) == true)
+        .ToList();
+    }
+
+    public static List<string> CollectViewFamilyTypeNames(Document doc)
+    {
+      return new FilteredElementCollector(doc)
+        .OfClass(typeof(ViewFamilyType))
+        .Cast<ViewFamilyType>()
+        .Select(type => type.Name)
+        .Where(name => !string.IsNullOrWhiteSpace(name))
+        .Distinct(StringComparer.OrdinalIgnoreCase)
+        .OrderBy(name => name, StringComparer.OrdinalIgnoreCase)
+        .ToList();
     }
 
     private static List<FamilySymbol> TryCollectArraySymbols(Document doc)

@@ -7,8 +7,7 @@ namespace NMKRebar.Services
   {
     public bool AllowElement(Element elem)
     {
-      return elem is FamilyInstance instance
-        && instance.Symbol?.Family?.Name.Equals(RebarTypeCreateService.ArrayFamilyName, StringComparison.OrdinalIgnoreCase) == true;
+      return CreateRebarByLineService.IsRebarArrayInstance(elem);
     }
 
     public bool AllowReference(Reference reference, XYZ position)

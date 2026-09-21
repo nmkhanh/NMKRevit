@@ -170,6 +170,14 @@ namespace NMKRebar.Properties
 
     [UserScopedSetting]
     [DefaultSettingValue("")]
+    public string LastViewFamilyTypeName
+    {
+      get => this[nameof(LastViewFamilyTypeName)] as string ?? string.Empty;
+      set => this[nameof(LastViewFamilyTypeName)] = value ?? string.Empty;
+    }
+
+    [UserScopedSetting]
+    [DefaultSettingValue("")]
     public string LastSameShapeTypeName
     {
       get => this[nameof(LastSameShapeTypeName)] as string ?? string.Empty;

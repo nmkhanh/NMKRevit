@@ -83,23 +83,37 @@
           TextWrapping="Wrap"
           Text="{Binding CombinedName, StringFormat=File: {0}.dwg}" />
 
-        <Button
-          Grid.Row="4"
-          MinHeight="36"
-          Margin="0,0,0,12"
-          HorizontalAlignment="Left"
-          MinWidth="160"
-          Command="{Binding WblockCommand}">
-          <StackPanel Orientation="Horizontal">
-            <icon:MaterialIcon
-              Width="18"
-              Height="18"
-              Margin="0,0,8,0"
-              Kind="Export"
-              Foreground="White" />
-            <TextBlock VerticalAlignment="Center" Foreground="White" Text="Wblock" />
-          </StackPanel>
-        </Button>
+        <StackPanel Grid.Row="4" Margin="0,0,0,12" Orientation="Horizontal">
+          <Button
+            MinHeight="36"
+            MinWidth="160"
+            Margin="0,0,8,0"
+            Command="{Binding WblockCommand}">
+            <StackPanel Orientation="Horizontal">
+              <icon:MaterialIcon
+                Width="18"
+                Height="18"
+                Margin="0,0,8,0"
+                Kind="Export"
+                Foreground="White" />
+              <TextBlock VerticalAlignment="Center" Foreground="White" Text="Wblock" />
+            </StackPanel>
+          </Button>
+          <Button
+            MinHeight="36"
+            MinWidth="160"
+            Command="{Binding GetTextCommand}">
+            <StackPanel Orientation="Horizontal">
+              <icon:MaterialIcon
+                Width="18"
+                Height="18"
+                Margin="0,0,8,0"
+                Kind="FormatText"
+                Foreground="White" />
+              <TextBlock VerticalAlignment="Center" Foreground="White" Text="Get Text" />
+            </StackPanel>
+          </Button>
+        </StackPanel>
 
         <TextBox
           Grid.Row="5"

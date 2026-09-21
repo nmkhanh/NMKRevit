@@ -53,11 +53,81 @@ namespace NMKRebar.Services
       fm.AddParameter(name, Dimensions(), spec, isInstance);
     }
 
+    public static void AddFamilyParameter(
+      FamilyManager fm,
+      string name,
+      Definition source,
+      bool isInstance)
+    {
+      ForgeTypeId spec = GetSpec(source);
+#if NETFRAMEWORK
+      BuiltInParameterGroup group = BuiltInParameterGroup.INVALID;
+      if (source is InternalDefinition internalDefinition)
+      {
+        group = internalDefinition.ParameterGroup;
+      }
+
+      fm.AddParameter(name, group, ToParameterType(spec), isInstance);
+#else
+      ForgeTypeId group = source.GetGroupTypeId();
+      if (group == null || string.IsNullOrWhiteSpace(group.TypeId))
+      {
+        group = new ForgeTypeId(string.Empty);
+      }
+
+      fm.AddParameter(name, group, spec, isInstance);
+#endif
+    }
+
     public enum ParameterBucket
     {
       Dimensions,
       General,
       Other
+    }
+
+    public static bool KeepInDimensions(string name)
+    {
+      return name.Equals("d", StringComparison.OrdinalIgnoreCase)
+        || name.Equals("Curve", StringComparison.OrdinalIgnoreCase)
+        || name.Equals("Rebar Type", StringComparison.OrdinalIgnoreCase);
+    }
+
+    public static bool IsDimensions(FamilyParameter parameter)
+    {
+      return parameter?.Definition != null && IsDimensions(parameter.Definition);
+    }
+
+    public static bool IsDimensions(Definition definition)
+    {
+      if (definition == null)
+      {
+        return false;
+      }
+
+#if NETFRAMEWORK
+      if (definition is InternalDefinition internalDefinition)
+      {
+        return internalDefinition.ParameterGroup == BuiltInParameterGroup.PG_GEOMETRY;
+      }
+#endif
+      return definition.GetGroupTypeId() == Dimensions();
+    }
+
+    public static ForgeTypeId GetSpec(FamilyParameter parameter)
+    {
+      return GetSpec(parameter.Definition);
+    }
+
+    public static ForgeTypeId GetSpec(Definition definition)
+    {
+#if NETFRAMEWORK
+      if (definition is InternalDefinition internalDefinition)
+      {
+        return FromParameterType(internalDefinition.ParameterType);
+      }
+#endif
+      return definition.GetDataType();
     }
 
     public static bool IsGeneral(FamilyParameter parameter)
@@ -92,6 +162,31 @@ namespace NMKRebar.Services
     }
 
 #if NETFRAMEWORK
+    private static ForgeTypeId FromParameterType(ParameterType type)
+    {
+      if (type == ParameterType.Angle)
+      {
+        return SpecTypeId.Angle;
+      }
+
+      if (type == ParameterType.YesNo)
+      {
+        return SpecTypeId.Boolean.YesNo;
+      }
+
+      if (type == ParameterType.Number)
+      {
+        return SpecTypeId.Number;
+      }
+
+      if (type == ParameterType.Text)
+      {
+        return SpecTypeId.String.Text;
+      }
+
+      return SpecTypeId.Length;
+    }
+
     private static ParameterType ToParameterType(ForgeTypeId spec)
     {
       if (spec == SpecTypeId.Angle)

@@ -108,7 +108,7 @@ namespace NMKRebar.Services
       text.AppendLine($"Rebar.txt: {TxtPath}");
       text.AppendLine($"RebarBarType created: {RebarTypesCreated}, skipped: {RebarTypesSkipped}");
       text.AppendLine($"NMK_Rebar_Array types created: {ArrayTypesCreated}, existing: {ArrayTypesSkipped}");
-      text.AppendLine($"d / Rebar Type set: {ArrayParametersSet}");
+      text.AppendLine($"d / Rebar Type / bending set: {ArrayParametersSet}");
       if (Warnings.Count > 0)
       {
         text.AppendLine();
@@ -134,6 +134,35 @@ namespace NMKRebar.Services
     public const string TypeShapeFileName = "TypeShape.csv";
     public const string TypeDataFileName = "TypeData.csv";
 
+    public static bool IsArrayFamily(Family? family)
+    {
+      return family != null
+        && family.Name.Equals(ArrayFamilyName, StringComparison.OrdinalIgnoreCase)
+        && IsStructuralFraming(family.FamilyCategory);
+    }
+
+    public static Family? FindArrayFamily(Document doc)
+    {
+      return new FilteredElementCollector(doc)
+        .OfClass(typeof(Family))
+        .Cast<Family>()
+        .FirstOrDefault(IsArrayFamily);
+    }
+
+    public static bool IsStructuralFraming(Category? category)
+    {
+      if (category == null)
+      {
+        return false;
+      }
+
+#if NETFRAMEWORK
+      return category.Id.IntegerValue == (int)BuiltInCategory.OST_StructuralFraming;
+#else
+      return category.Id.Value == (long)BuiltInCategory.OST_StructuralFraming;
+#endif
+    }
+
     public static RebarTypeCreateResult Create(Document doc, string folder)
     {
       if (doc.IsFamilyDocument)
@@ -154,10 +183,7 @@ namespace NMKRebar.Services
         .Cast<RebarBarType>()
         .ToList();
 
-      Family? arrayFamily = new FilteredElementCollector(doc)
-        .OfClass(typeof(Family))
-        .Cast<Family>()
-        .FirstOrDefault(family => family.Name.Equals(ArrayFamilyName, StringComparison.OrdinalIgnoreCase));
+      Family? arrayFamily = FindArrayFamily(doc);
 
       List<FamilySymbol> arraySymbols = arrayFamily == null
         ? new List<FamilySymbol>()
@@ -211,6 +237,7 @@ namespace NMKRebar.Services
 
           FamilySymbol? arraySymbol = arraySymbols.FirstOrDefault(symbol =>
             symbol.Name.Equals(row.RebarTypeName, StringComparison.OrdinalIgnoreCase));
+          bool duplicated = false;
           if (arraySymbol == null)
           {
             try
@@ -220,6 +247,7 @@ namespace NMKRebar.Services
                 arraySymbol = createdSymbol;
                 arraySymbols.Add(createdSymbol);
                 result.ArrayTypesCreated++;
+                duplicated = true;
               }
             }
             catch (Exception ex)
@@ -234,7 +262,12 @@ namespace NMKRebar.Services
 
           if (arraySymbol != null)
           {
-            result.ArrayParametersSet += SetArrayDAndRebarType(arraySymbol, row, existingRebar, result);
+            if (duplicated)
+            {
+              result.ArrayParametersSet += SetArrayDAndRebarType(arraySymbol, row, existingRebar, result);
+            }
+
+            result.ArrayParametersSet += SetSegmentBending(arraySymbol, row.Diameter, result);
           }
         }
 
@@ -243,7 +276,7 @@ namespace NMKRebar.Services
 
       if (arrayFamily == null)
       {
-        result.Warnings.Add($"Family '{ArrayFamilyName}' is not loaded in this project.");
+        result.Warnings.Add($"Family '{ArrayFamilyName}' (Structural Framing) is not loaded in this project.");
       }
 
       return result;
@@ -309,6 +342,33 @@ namespace NMKRebar.Services
       if (CsvValueConverter.TrySetParameter(rebarType, row.RebarTypeName, result.Warnings))
       {
         set++;
+      }
+
+      return set;
+    }
+
+    private static int SetSegmentBending(FamilySymbol symbol, int diameterMm, RebarTypeCreateResult result)
+    {
+      if (!symbol.IsActive)
+      {
+        symbol.Activate();
+      }
+
+      string bending = SetTypeEditorService.FormatBarMultipleMm(diameterMm, 3);
+      int set = 0;
+      for (int n = SetTypeEditorService.DimensionStart; n <= SetTypeEditorService.DimensionEnd; n++)
+      {
+        Parameter? parameter = symbol.LookupParameter($"{n}_Bending");
+        if (parameter == null)
+        {
+          result.Warnings.Add($"[{symbol.Name}] missing parameter '{n}_Bending'.");
+          continue;
+        }
+
+        if (CsvValueConverter.TrySetParameter(parameter, bending, result.Warnings))
+        {
+          set++;
+        }
       }
 
       return set;

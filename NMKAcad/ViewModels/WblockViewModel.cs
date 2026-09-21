@@ -51,6 +51,7 @@ namespace NMKAcad.ViewModels
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(WblockCommand))]
+    [NotifyCanExecuteChangedFor(nameof(GetTextCommand))]
     private bool _isBusy;
 
     public string CombinedName => WblockService.SanitizeFileName($"{Prefix}{Main}{Suffix}");
@@ -78,6 +79,39 @@ namespace NMKAcad.ViewModels
       catch (Exception ex)
       {
         Status = ex.Message;
+      }
+    }
+
+    [RelayCommand(CanExecute = nameof(CanGetText))]
+    private async Task GetTextAsync()
+    {
+      IsBusy = true;
+      WblockPalette.HideForPick();
+      try
+      {
+        string text = string.Empty;
+        await AcadCommandRunner.RunAsync(() =>
+        {
+          text = TextCollectService.CollectFromSelection();
+        });
+
+        _dispatcher.Invoke(() => Forms.Clipboard.SetText(text));
+        int count = text.Split(new[] { "\r\n" }, StringSplitOptions.None).Length;
+        Status = $"Copied {count} line(s) to clipboard. Paste into Excel.";
+      }
+      catch (OperationCanceledException)
+      {
+        Status = "Selection cancelled.";
+      }
+      catch (Exception ex)
+      {
+        Status = ex.Message;
+      }
+      finally
+      {
+        WblockPalette.RestoreAfterPick();
+        RefreshDrawing();
+        IsBusy = false;
       }
     }
 
@@ -128,6 +162,11 @@ namespace NMKAcad.ViewModels
       AcadApp.DocumentManager.DocumentActivated -= OnDocumentActivated;
       SaveSettings();
       _disposed = true;
+    }
+
+    private bool CanGetText()
+    {
+      return !IsBusy;
     }
 
     private bool CanWblock()
