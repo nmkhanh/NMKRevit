@@ -81,6 +81,44 @@
             </StackPanel>
           </Button>
 
+          <Button
+            Margin="0,0,0,8"
+            HorizontalAlignment="Stretch"
+            Command="{Binding DirectShapeNonIntersectCommand}">
+            <StackPanel Orientation="Horizontal">
+              <icon:MaterialIcon
+                Width="18"
+                Height="18"
+                Margin="0,0,8,0"
+                Kind="CubeOutline"
+                Foreground="White" />
+              <TextBlock
+                VerticalAlignment="Center"
+                Foreground="White"
+                TextWrapping="Wrap"
+                Text="Non-Intersect DS" />
+            </StackPanel>
+          </Button>
+
+          <Button
+            Margin="0,0,0,8"
+            HorizontalAlignment="Stretch"
+            Command="{Binding DirectShapeMeshCutCommand}">
+            <StackPanel Orientation="Horizontal">
+              <icon:MaterialIcon
+                Width="18"
+                Height="18"
+                Margin="0,0,8,0"
+                Kind="TriangleOutline"
+                Foreground="White" />
+              <TextBlock
+                VerticalAlignment="Center"
+                Foreground="White"
+                TextWrapping="Wrap"
+                Text="Mesh → Solid Cut" />
+            </StackPanel>
+          </Button>
+
           <TextBox
             Style="{StaticResource StatusTextBoxStyle}"
             Text="{Binding Status, Mode=OneWay}" />

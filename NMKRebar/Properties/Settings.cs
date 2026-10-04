@@ -207,5 +207,13 @@ namespace NMKRebar.Properties
       get => (bool)this[nameof(AddXyBlock)];
       set => this[nameof(AddXyBlock)] = value;
     }
+
+    [UserScopedSetting]
+    [DefaultSettingValue("45")]
+    public string RotateSoleAngle
+    {
+      get => this[nameof(RotateSoleAngle)] as string ?? "45";
+      set => this[nameof(RotateSoleAngle)] = value ?? "45";
+    }
   }
 }

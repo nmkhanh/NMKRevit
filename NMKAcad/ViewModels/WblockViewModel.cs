@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using System.IO;
 using System.Windows.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -20,9 +21,23 @@ namespace NMKAcad.ViewModels
       Prefix = Properties.Settings.Default.Prefix ?? string.Empty;
       Main = Properties.Settings.Default.Main ?? string.Empty;
       Suffix = Properties.Settings.Default.Suffix ?? string.Empty;
+      AutoIncrementSuffix = Properties.Settings.Default.AutoIncrementSuffix;
+      LoadCsvOptions();
       RefreshDrawing();
       AcadApp.DocumentManager.DocumentActivated += OnDocumentActivated;
     }
+
+    [ObservableProperty]
+    private bool _autoIncrementSuffix = true;
+
+    [ObservableProperty]
+    private ObservableCollection<string> _prefixOptions = new();
+
+    [ObservableProperty]
+    private ObservableCollection<string> _mainOptions = new();
+
+    [ObservableProperty]
+    private ObservableCollection<string> _suffixOptions = new();
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(WblockCommand))]
@@ -132,8 +147,11 @@ namespace NMKAcad.ViewModels
           path = WblockService.ExportSelection(folder, name);
         });
 
-        Suffix = SuffixIncrementer.Next(Suffix);
-        SaveSettings();
+        if (AutoIncrementSuffix)
+        {
+          Suffix = SuffixIncrementer.Next(Suffix);
+          SaveSettings();
+        }
         Status = $"Saved: {path}";
       }
       catch (OperationCanceledException)
@@ -187,12 +205,87 @@ namespace NMKAcad.ViewModels
       CurrentDrawing = WblockService.CurrentDrawingName();
     }
 
+    [RelayCommand]
+    private void ReloadCsv()
+    {
+      try
+      {
+        LoadCsvOptions();
+        Status = $"Reloaded CSV ({PrefixOptions.Count} prefixes, {MainOptions.Count} mains, {SuffixOptions.Count} suffixes).";
+      }
+      catch (Exception ex)
+      {
+        Status = $"Error reloading CSV: {ex.Message}";
+      }
+    }
+
+    [RelayCommand]
+    private void EditCsv()
+    {
+      try
+      {
+        string path = CsvOptionsService.GetCsvPath();
+        if (!File.Exists(path))
+        {
+          CsvOptionsService.CreateDefaultCsv(path);
+        }
+
+        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+        {
+          FileName = path,
+          UseShellExecute = true
+        });
+        Status = $"Opened CSV: {Path.GetFileName(path)}";
+      }
+      catch (Exception ex)
+      {
+        Status = $"Cannot open CSV: {ex.Message}";
+      }
+    }
+
+    private void LoadCsvOptions()
+    {
+      var options = CsvOptionsService.LoadOptions();
+
+      PrefixOptions.Clear();
+      foreach (var item in options.Prefixes)
+      {
+        PrefixOptions.Add(item);
+      }
+
+      MainOptions.Clear();
+      foreach (var item in options.Mains)
+      {
+        MainOptions.Add(item);
+      }
+
+      SuffixOptions.Clear();
+      foreach (var item in options.Suffixes)
+      {
+        SuffixOptions.Add(item);
+      }
+
+      if (string.IsNullOrEmpty(Prefix) && PrefixOptions.Count > 0)
+      {
+        Prefix = PrefixOptions[0];
+      }
+      if (string.IsNullOrEmpty(Main) && MainOptions.Count > 0)
+      {
+        Main = MainOptions[0];
+      }
+      if (string.IsNullOrEmpty(Suffix) && SuffixOptions.Count > 0)
+      {
+        Suffix = SuffixOptions[0];
+      }
+    }
+
     private void SaveSettings()
     {
       Properties.Settings.Default.SaveFolder = SaveFolder ?? string.Empty;
       Properties.Settings.Default.Prefix = Prefix ?? string.Empty;
       Properties.Settings.Default.Main = Main ?? string.Empty;
       Properties.Settings.Default.Suffix = Suffix ?? string.Empty;
+      Properties.Settings.Default.AutoIncrementSuffix = AutoIncrementSuffix;
       Properties.Settings.Default.Save();
     }
   }

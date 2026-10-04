@@ -57,7 +57,7 @@ namespace NMKRebar.Services
       using (var tx = new Transaction(doc, "NMK DirectShape from In-Place"))
       {
         tx.Start();
-        TryUnhideGenericModel(doc);
+        DirectShapeFromInPlaceService.UnhideGenericModel(doc);
         RevitMaterial? concrete = GetOrCreateConcreteMaterial(doc);
         foreach (FamilyInstance instance in instances)
         {
@@ -88,7 +88,7 @@ namespace NMKRebar.Services
             ds.ApplicationDataId = CreateRebarByLineService.IdValue(instance.Id).ToString();
             ds.SetName(SanitizeName($"IP_{instance.Name}"));
             ds.SetShape(shape);
-            TryAssignConcreteMaterial(ds, concrete);
+            DirectShapeFromInPlaceService.AssignConcreteMaterial(ds, concrete);
             TrySetString(ds, BuiltInParameter.ALL_MODEL_INSTANCE_COMMENTS, $"From in-place {instance.Name}");
             solidCount += solids.Count;
             created.Add(ds.Id);
@@ -237,7 +237,7 @@ namespace NMKRebar.Services
       return result;
     }
 
-    private static RevitMaterial? GetOrCreateConcreteMaterial(Document doc)
+    internal static RevitMaterial? GetOrCreateConcreteMaterial(Document doc)
     {
       List<RevitMaterial> materials = new FilteredElementCollector(doc)
         .OfClass(typeof(RevitMaterial))
@@ -314,7 +314,7 @@ namespace NMKRebar.Services
       }
     }
 
-    private static void TryAssignConcreteMaterial(DirectShape ds, RevitMaterial? concrete)
+    internal static void AssignConcreteMaterial(DirectShape ds, RevitMaterial? concrete)
     {
       if (concrete == null)
       {
@@ -359,7 +359,7 @@ namespace NMKRebar.Services
       }
     }
 
-    private static void TryUnhideGenericModel(Document doc)
+    internal static void UnhideGenericModel(Document doc)
     {
       View? view = doc.ActiveView;
       ElementId categoryId = new ElementId(BuiltInCategory.OST_GenericModel);

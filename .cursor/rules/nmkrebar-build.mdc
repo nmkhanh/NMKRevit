@@ -1,0 +1,17 @@
+---
+description: Always build NMKRebar for Revit 2022, 2026, and 2027 after code changes.
+globs: NMKRebar/**/*
+alwaysApply: false
+---
+
+# NMKRebar multi-version build
+
+After implementing or changing NMKRebar, always build all three debug configurations and report each result:
+
+```
+dotnet build NMKRebar/NMKRebar.csproj -c D2022
+dotnet build NMKRebar/NMKRebar.csproj -c D2026
+dotnet build NMKRebar/NMKRebar.csproj -c D2027
+```
+
+Do not stop after a single version. Prefer `NMKRebar/build.ps1` when available.

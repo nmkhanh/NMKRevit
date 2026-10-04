@@ -75,6 +75,48 @@ namespace NMKRebar.ViewModels
       }
     }
 
+    [RelayCommand]
+    private async Task DirectShapeNonIntersect()
+    {
+      try
+      {
+        Status = await RevitTaskRun.Async(_uiapp, uiapp =>
+        {
+          UIDocument uidoc = uiapp.ActiveUIDocument ?? throw new InvalidOperationException("No active document.");
+          return DirectShapeNonIntersectService.CreateFromPicked(uidoc);
+        });
+      }
+      catch (Autodesk.Revit.Exceptions.OperationCanceledException)
+      {
+        Status = "Selection cancelled.";
+      }
+      catch (Exception ex)
+      {
+        Status = ex.Message;
+      }
+    }
+
+    [RelayCommand]
+    private async Task DirectShapeMeshCut()
+    {
+      try
+      {
+        Status = await RevitTaskRun.Async(_uiapp, uiapp =>
+        {
+          UIDocument uidoc = uiapp.ActiveUIDocument ?? throw new InvalidOperationException("No active document.");
+          return DirectShapeNonIntersectService.CreateFromPickedMesh(uidoc);
+        });
+      }
+      catch (Autodesk.Revit.Exceptions.OperationCanceledException)
+      {
+        Status = "Selection cancelled.";
+      }
+      catch (Exception ex)
+      {
+        Status = ex.Message;
+      }
+    }
+
     partial void OnDataFolderChanged(string value) => SaveSelections();
 
     private void SaveSelections()

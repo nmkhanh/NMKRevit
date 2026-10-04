@@ -36,4 +36,9 @@
     <PackageReference Include="Material.Icons.WPF" Version="2.4.1" />
     <PackageReference Include="System.Configuration.ConfigurationManager" Version="8.0.1" />
   </ItemGroup>
+  <ItemGroup>
+    <None Update="wblock_options.csv">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
 </Project>

@@ -78,7 +78,31 @@ namespace NMKRebar
           assemblyPath,
           "NMKRebar.Commands.NMKProjectCommand")
         {
-          ToolTip = "Project document: Set Rebar Varies, Place Coupler."
+          ToolTip = "Project document: Set Rebar Varies, Place Coupler, Non-Intersect DirectShape."
+        });
+        projectPanel.AddItem(new PushButtonData(
+          "NMKModelLinesFromCsv",
+          "Model Lines\nFrom CSV",
+          assemblyPath,
+          "NMKRebar.Commands.NMKCreateModelLinesFromCsvCommand")
+        {
+          ToolTip = "Project document: create vertical model lines from CSV file with line styles named 'axis-point'."
+        });
+        projectPanel.AddItem(new PushButtonData(
+          "NMKProfileLinesFromCsv",
+          "Profile Lines\nFrom CSV",
+          assemblyPath,
+          "NMKRebar.Commands.NMKCreateProfileLinesFromCsvCommand")
+        {
+          ToolTip = "Project document: connect profile points across axes from CSV file with line styles named after profile."
+        });
+        projectPanel.AddItem(new PushButtonData(
+          "NMKRowLinesFromCsv",
+          "Row Lines\nFrom CSV",
+          assemblyPath,
+          "NMKRebar.Commands.NMKCreateRowLinesFromCsvCommand")
+        {
+          ToolTip = "Project document: connect row points across profiles from CSV file with line styles named PROFILE_<Axis>."
         });
 
         Revit.Async.RevitTask.Initialize(application);

@@ -62,17 +62,78 @@
         </Grid>
 
         <StackPanel Grid.Row="2" Margin="0,0,0,8">
+          <Grid Margin="0,0,0,6">
+            <TextBlock Text="Name Settings" FontWeight="SemiBold" VerticalAlignment="Center" />
+            <StackPanel HorizontalAlignment="Right" Orientation="Horizontal">
+              <Button
+                Padding="8,3"
+                MinHeight="26"
+                Margin="0,0,6,0"
+                Command="{Binding EditCsvCommand}"
+                ToolTip="Open CSV file to edit">
+                <StackPanel Orientation="Horizontal">
+                  <icon:MaterialIcon
+                    Width="14"
+                    Height="14"
+                    Margin="0,0,4,0"
+                    Kind="FileDocumentOutline"
+                    Foreground="White" />
+                  <TextBlock VerticalAlignment="Center" Foreground="White" FontSize="12" Text="Edit CSV" />
+                </StackPanel>
+              </Button>
+              <Button
+                Padding="8,3"
+                MinHeight="26"
+                Command="{Binding ReloadCsvCommand}"
+                ToolTip="Reload options from CSV file">
+                <StackPanel Orientation="Horizontal">
+                  <icon:MaterialIcon
+                    Width="14"
+                    Height="14"
+                    Margin="0,0,4,0"
+                    Kind="Refresh"
+                    Foreground="White" />
+                  <TextBlock VerticalAlignment="Center" Foreground="White" FontSize="12" Text="Reload" />
+                </StackPanel>
+              </Button>
+            </StackPanel>
+          </Grid>
+
           <StackPanel Margin="0,0,0,8" HorizontalAlignment="Left">
             <TextBlock Margin="0,0,0,4" Foreground="{StaticResource MutedTextBrush}" Text="Prefix" />
-            <TextBox Width="300" HorizontalAlignment="Left" Text="{Binding Prefix, UpdateSourceTrigger=PropertyChanged}" />
+            <ComboBox
+              Width="300"
+              HorizontalAlignment="Left"
+              IsEditable="True"
+              ItemsSource="{Binding PrefixOptions}"
+              Text="{Binding Prefix, UpdateSourceTrigger=PropertyChanged}" />
           </StackPanel>
           <StackPanel Margin="0,0,0,8" HorizontalAlignment="Left">
             <TextBlock Margin="0,0,0,4" Foreground="{StaticResource MutedTextBrush}" Text="Main" />
-            <TextBox Width="300" HorizontalAlignment="Left" Text="{Binding Main, UpdateSourceTrigger=PropertyChanged}" />
+            <ComboBox
+              Width="300"
+              HorizontalAlignment="Left"
+              IsEditable="True"
+              ItemsSource="{Binding MainOptions}"
+              Text="{Binding Main, UpdateSourceTrigger=PropertyChanged}" />
           </StackPanel>
           <StackPanel HorizontalAlignment="Left">
-            <TextBlock Margin="0,0,0,4" Foreground="{StaticResource MutedTextBrush}" Text="Suffix" />
-            <TextBox Width="300" HorizontalAlignment="Left" Text="{Binding Suffix, UpdateSourceTrigger=PropertyChanged}" />
+            <DockPanel Width="300" Margin="0,0,0,4">
+              <TextBlock DockPanel.Dock="Left" Foreground="{StaticResource MutedTextBrush}" Text="Suffix" VerticalAlignment="Center" />
+              <CheckBox
+                DockPanel.Dock="Right"
+                HorizontalAlignment="Right"
+                Content="Tự động tăng"
+                IsChecked="{Binding AutoIncrementSuffix}"
+                VerticalAlignment="Center"
+                ToolTip="Tự động tăng giá trị suffix sau mỗi lần Wblock thành công" />
+            </DockPanel>
+            <ComboBox
+              Width="300"
+              HorizontalAlignment="Left"
+              IsEditable="True"
+              ItemsSource="{Binding SuffixOptions}"
+              Text="{Binding Suffix, UpdateSourceTrigger=PropertyChanged}" />
           </StackPanel>
         </StackPanel>
 

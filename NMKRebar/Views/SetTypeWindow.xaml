@@ -1016,6 +1016,26 @@
               HorizontalAlignment="Stretch"
               Command="{Binding PlaceCouplerCommand}"
               Content="Place Coupler" />
+            <Grid
+              Margin="0,8,0,0">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition
+                  Width="64" />
+                <ColumnDefinition
+                  Width="8" />
+                <ColumnDefinition
+                  Width="*" />
+              </Grid.ColumnDefinitions>
+              <TextBox
+                VerticalAlignment="Center"
+                ToolTip="Rotate Sole step angle in degrees"
+                Text="{Binding RotateSoleAngle, UpdateSourceTrigger=PropertyChanged}" />
+              <Button
+                Grid.Column="2"
+                HorizontalAlignment="Stretch"
+                Command="{Binding RotateSoleCommand}"
+                Content="Rotate Sole" />
+            </Grid>
           </StackPanel>
         </GroupBox>
       </StackPanel>

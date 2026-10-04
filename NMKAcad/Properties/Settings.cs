@@ -39,5 +39,13 @@ namespace NMKAcad.Properties
       get => (string)this[nameof(Suffix)];
       set => this[nameof(Suffix)] = value;
     }
+
+    [UserScopedSetting]
+    [DefaultSettingValue("true")]
+    public bool AutoIncrementSuffix
+    {
+      get => (bool)this[nameof(AutoIncrementSuffix)];
+      set => this[nameof(AutoIncrementSuffix)] = value;
+    }
   }
 }

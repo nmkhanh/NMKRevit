@@ -339,6 +339,9 @@ namespace NMKRebar.ViewModels
       SelectedCouplerFamilyName = string.IsNullOrWhiteSpace(settings.LastCouplerFamilyName)
         ? null
         : settings.LastCouplerFamilyName;
+      RotateSoleAngle = string.IsNullOrWhiteSpace(settings.RotateSoleAngle)
+        ? "45"
+        : settings.RotateSoleAngle;
       RebarHostDisplayName = "(no host)";
       _ready = true;
       SaveFolder();
@@ -404,6 +407,9 @@ namespace NMKRebar.ViewModels
 
     [ObservableProperty]
     private string? _selectedCouplerFamilyName;
+
+    [ObservableProperty]
+    private string _rotateSoleAngle = "45";
 
     public bool PlaceTwoCouplers
     {
@@ -1321,6 +1327,34 @@ namespace NMKRebar.ViewModels
     }
 
     [RelayCommand]
+    private void RotateSole()
+    {
+      _ = RotateSoleAsync();
+    }
+
+    private async Task RotateSoleAsync()
+    {
+      try
+      {
+        string angle = RotateSoleAngle;
+        Status = await RevitTaskRun.Async(_uiapp, uiapp =>
+        {
+          UIDocument uidoc = uiapp.ActiveUIDocument ?? throw new InvalidOperationException("No active document.");
+          return RotateSoleService.RotatePicked(uidoc, angle);
+        });
+        RevitTaskRun.Wake(_uiapp);
+      }
+      catch (Autodesk.Revit.Exceptions.OperationCanceledException)
+      {
+        Status = "Rotate Sole cancelled.";
+      }
+      catch (Exception ex)
+      {
+        Status = ex.Message;
+      }
+    }
+
+    [RelayCommand]
     private void PlaceCoupler()
     {
       _ = PlaceCouplerAsync();
@@ -1398,6 +1432,8 @@ namespace NMKRebar.ViewModels
     }
 
     partial void OnSelectedCouplerFamilyNameChanged(string? value) => SaveFolder();
+
+    partial void OnRotateSoleAngleChanged(string value) => SaveFolder();
 
     [RelayCommand]
     private void SelectInstances()
@@ -2299,6 +2335,7 @@ namespace NMKRebar.ViewModels
       settings.LastSameShapeTypeName = SelectedSameShapeType ?? SameShapeTypeText ?? string.Empty;
       settings.PlaceOneCoupler = PlaceOneCoupler;
       settings.LastCouplerFamilyName = SelectedCouplerFamilyName ?? string.Empty;
+      settings.RotateSoleAngle = RotateSoleAngle ?? string.Empty;
       settings.LastRebarHostElementId = RebarHostElementId == 0
         ? string.Empty
         : RebarHostElementId.ToString(System.Globalization.CultureInfo.InvariantCulture);
