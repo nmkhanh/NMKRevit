@@ -1,0 +1,189 @@
+<Window
+  x:Class="NMKRebar.Views.GenericModelTypeWindow"
+  xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+  xmlns:icon="clr-namespace:Material.Icons.WPF;assembly=Material.Icons.WPF"
+  Title="NMK Rebar — Generic Model Types From CSV"
+  Width="560"
+  MinWidth="560"
+  MaxWidth="560"
+  SizeToContent="Height"
+  ResizeMode="NoResize"
+  WindowStartupLocation="CenterOwner">
+  <Window.Resources>
+    <ResourceDictionary>
+      <ResourceDictionary.MergedDictionaries>
+        <ResourceDictionary Source="pack://application:,,,/NMKRebar;component/Views/NmkTheme.xaml" />
+      </ResourceDictionary.MergedDictionaries>
+    </ResourceDictionary>
+  </Window.Resources>
+
+  <Grid Background="{StaticResource PageBackgroundBrush}">
+    <Border
+      Margin="12"
+      Padding="14"
+      Background="{StaticResource PanelBrush}"
+      BorderBrush="{StaticResource BorderBrush}"
+      BorderThickness="1"
+      CornerRadius="8">
+      <Grid>
+        <Grid.RowDefinitions>
+          <RowDefinition Height="Auto" />
+          <RowDefinition Height="Auto" />
+          <RowDefinition Height="Auto" />
+          <RowDefinition Height="Auto" />
+          <RowDefinition Height="Auto" />
+          <RowDefinition Height="Auto" />
+          <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!-- Header -->
+        <TextBlock
+          FontSize="16"
+          FontWeight="SemiBold"
+          Text="Generic Model Types From CSV" />
+        <TextBlock
+          Grid.Row="1"
+          Margin="0,4,0,12"
+          TextWrapping="Wrap"
+          Foreground="{StaticResource MutedTextBrush}"
+          Text="Đọc file CSV (ghép Cột 1 và Cột 2 thành tên Type, hàng 1 từ cột 3 là tên Parameter, đơn vị: mm) để tạo mới hoặc cập nhật các Type trong Family Generic Model." />
+
+        <!-- Row 1: File CSV -->
+        <Grid Grid.Row="2" Margin="0,0,0,10">
+          <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+          </Grid.RowDefinitions>
+          <TextBlock
+            Margin="0,0,0,4"
+            FontWeight="Medium"
+            Foreground="{StaticResource TextBrush}"
+            Text="File CSV:" />
+          <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="*" />
+              <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <TextBox
+              VerticalAlignment="Center"
+              Text="{Binding CsvPath, UpdateSourceTrigger=PropertyChanged}" />
+            <Button
+              Grid.Column="1"
+              Width="95"
+              Margin="8,0,0,0"
+              Command="{Binding BrowseCsvCommand}">
+              <StackPanel Orientation="Horizontal">
+                <icon:MaterialIcon
+                  Width="16"
+                  Height="16"
+                  Margin="0,0,6,0"
+                  Kind="FolderOutline"
+                  Foreground="White" />
+                <TextBlock VerticalAlignment="Center" Foreground="White" Text="Browse" />
+              </StackPanel>
+            </Button>
+          </Grid>
+        </Grid>
+
+        <!-- Row 2: Family Generic Model (Searchable ComboBox) -->
+        <Grid Grid.Row="3" Margin="0,0,0,10">
+          <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+          </Grid.RowDefinitions>
+          <TextBlock
+            Margin="0,0,0,4"
+            FontWeight="Medium"
+            Foreground="{StaticResource TextBrush}"
+            Text="Family Generic Model (gợi ý / tìm kiếm tự fill):" />
+          <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="*" />
+              <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <ComboBox
+              IsEditable="True"
+              IsTextSearchEnabled="True"
+              ItemsSource="{Binding AllFamilies}"
+              SelectedItem="{Binding SelectedFamily}"
+              Text="{Binding SelectedFamilyText, UpdateSourceTrigger=LostFocus}" />
+            <Button
+              Grid.Column="1"
+              Width="95"
+              Margin="8,0,0,0"
+              Background="{StaticResource HoverBrush}"
+              BorderBrush="{StaticResource BorderBrush}"
+              BorderThickness="1"
+              Command="{Binding RefreshFamiliesCommand}"
+              ToolTip="Tải lại danh sách Family trong dự án">
+              <StackPanel Orientation="Horizontal">
+                <icon:MaterialIcon
+                  Width="16"
+                  Height="16"
+                  Margin="0,0,4,0"
+                  Kind="Refresh"
+                  Foreground="{StaticResource TextBrush}" />
+                <TextBlock VerticalAlignment="Center" Foreground="{StaticResource TextBrush}" Text="Reload" />
+              </StackPanel>
+            </Button>
+          </Grid>
+        </Grid>
+
+        <!-- Row 3: Separator -->
+        <Grid Grid.Row="4" Margin="0,0,0,12">
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto" />
+            <ColumnDefinition Width="70" />
+            <ColumnDefinition Width="*" />
+          </Grid.ColumnDefinitions>
+          <TextBlock
+            VerticalAlignment="Center"
+            Margin="0,0,8,0"
+            FontWeight="Medium"
+            Foreground="{StaticResource TextBrush}"
+            Text="Ký tự ghép Cột 1 và 2:" />
+          <TextBox
+            Grid.Column="1"
+            VerticalAlignment="Center"
+            HorizontalContentAlignment="Center"
+            Text="{Binding Separator, UpdateSourceTrigger=PropertyChanged}"
+            ToolTip="Mặc định là '_' (ví dụ Cột1_Cột2). Có thể đổi thành '-' hoặc để trống để ghép liền." />
+          <TextBlock
+            Grid.Column="2"
+            VerticalAlignment="Center"
+            Margin="8,0,0,0"
+            Foreground="{StaticResource MutedTextBrush}"
+            Text="(Mặc định: '_' -> Col1_Col2, '-' -> Col1-Col2)" />
+        </Grid>
+
+        <!-- Row 4: Button RUN -->
+        <Grid Grid.Row="5" Margin="0,0,0,12">
+          <Button
+            Height="34"
+            Command="{Binding RunCommand}">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+              <icon:MaterialIcon
+                Width="18"
+                Height="18"
+                Margin="0,0,8,0"
+                Kind="Play"
+                Foreground="White" />
+              <TextBlock
+                VerticalAlignment="Center"
+                FontWeight="SemiBold"
+                Foreground="White"
+                Text="RUN (Tạo / Cập nhật Types)" />
+            </StackPanel>
+          </Button>
+        </Grid>
+
+        <!-- Row 5: Status / Log -->
+        <TextBox
+          Grid.Row="6"
+          Style="{StaticResource StatusTextBoxStyle}"
+          Text="{Binding Status, Mode=OneWay}" />
+      </Grid>
+    </Border>
+  </Grid>
+</Window>

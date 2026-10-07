@@ -18,6 +18,30 @@ namespace NMKRebar.Properties
 
     [UserScopedSetting]
     [DefaultSettingValue("")]
+    public string GenericModelCsvPath
+    {
+      get => (string)this[nameof(GenericModelCsvPath)];
+      set => this[nameof(GenericModelCsvPath)] = value;
+    }
+
+    [UserScopedSetting]
+    [DefaultSettingValue("")]
+    public string LastGenericModelFamily
+    {
+      get => (string)this[nameof(LastGenericModelFamily)];
+      set => this[nameof(LastGenericModelFamily)] = value;
+    }
+
+    [UserScopedSetting]
+    [DefaultSettingValue("_")]
+    public string GenericModelTypeSeparator
+    {
+      get => (string)this[nameof(GenericModelTypeSeparator)];
+      set => this[nameof(GenericModelTypeSeparator)] = value;
+    }
+
+    [UserScopedSetting]
+    [DefaultSettingValue("")]
     public string LastGroupTypeName
     {
       get => (string)this[nameof(LastGroupTypeName)];

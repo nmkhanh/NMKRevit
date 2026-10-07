@@ -104,6 +104,14 @@ namespace NMKRebar
         {
           ToolTip = "Project document: connect row points across profiles from CSV file with line styles named PROFILE_<Axis>."
         });
+        projectPanel.AddItem(new PushButtonData(
+          "NMKGenericModelType",
+          "Generic Model\nTypes",
+          assemblyPath,
+          "NMKRebar.Commands.NMKGenericModelTypeCommand")
+        {
+          ToolTip = "Project document: create or update Generic Model types and parameters from CSV."
+        });
 
         Revit.Async.RevitTask.Initialize(application);
 
